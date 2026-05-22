@@ -1,0 +1,158 @@
+.panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-white);
+}
+
+.collapsed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px var(--spacing-md);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-gray);
+  user-select: none;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+.collapsed:hover {
+  background: #e8ecf1;
+}
+
+.headerText {
+  font-weight: 500;
+}
+
+.expanded {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-sm) var(--spacing-md);
+}
+
+.nodeInfo {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.nodeCategory {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.catScene { background: #ebf4ff; color: #2B5F9E; }
+.catGeometry { background: #e8faf0; color: #237804; }
+.catLight { background: #fffbe6; color: #AD6800; }
+.catControl { background: #e6fffb; color: #006D75; }
+.catEffect { background: #f5edff; color: #531DAB; }
+.catInteraction { background: #fff2e8; color: #AD2102; }
+.catDrawing { background: #fff0f6; color: #C41D7F; }
+
+.nodeLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.paramGroup {
+  margin-bottom: var(--spacing-sm);
+}
+
+.paramLabel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: 4px;
+}
+
+.paramSlider {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.paramValue {
+  font-size: 12px;
+  color: var(--color-text-primary);
+  min-width: 40px;
+  text-align: right;
+}
+
+.colorRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.keyBtn {
+  width: 100%;
+  font-size: 12px;
+}
+
+.interactionRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  padding: 4px 0;
+  gap: 8px;
+}
+
+.interactionText {
+  font-size: 13px;
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+.keyDisplay {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.keyBadge {
+  display: inline-block;
+  padding: 2px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  background: #f0f0f0;
+  border: 1px solid #d9d9d9;
+  border-radius: 4px;
+  color: var(--color-text-primary);
+  min-width: 60px;
+  text-align: center;
+}
+
+.empty {
+  padding: 12px var(--spacing-md);
+  text-align: center;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.applyRow {
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.adjustExplain {
+  margin-top: var(--spacing-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: #f6ffed;
+  border: 1px solid #b7eb8f;
+  border-radius: 4px;
+}

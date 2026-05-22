@@ -1,0 +1,45 @@
+:root {
+  /* 主色调 */
+  --color-primary: #4A90D9;
+  --color-primary-hover: #3A7BC8;
+  --color-primary-light: #E8F1FB;
+  --color-primary-dark: #2B5F9E;
+
+  /* 辅助色 */
+  --color-success: #52C41A;
+  --color-warning: #FAAD14;
+  --color-error: #FF4D4F;
+  --color-info: #4A90D9;
+
+  /* 中性色 */
+  --color-bg-white: #FFFFFF;
+  --color-bg-gray: #F5F7FA;
+  --color-border: #E4E7ED;
+  --color-text-secondary: #909399;
+  --color-text-primary: #303133;
+  --color-text-dark: #1A1A1A;
+
+  /* 间距 */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* 圆角 */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  /* 阴影 */
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-panel: 0 4px 16px rgba(0, 0, 0, 0.12);
+
+  /* 布局 */
+  --navbar-height: 56px;
+  --toolbar-height: 72px;
+
+  /* 字体 */
+  --font-family: 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+  --font-code: 'Consolas', 'Monaco', 'Courier New', monospace;
+}

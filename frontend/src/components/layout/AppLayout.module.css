@@ -1,0 +1,172 @@
+.layout {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-gray);
+}
+
+/* 顶部导航栏 */
+.header {
+  height: var(--navbar-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--spacing-lg);
+  background: var(--color-bg-white);
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+.headerLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+}
+
+.logo {
+  margin: 0;
+  color: var(--color-primary) !important;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.headerRight {
+  display: flex;
+  align-items: center;
+}
+
+.modeBtn {
+  color: var(--color-text-secondary);
+  font-size: 16px;
+}
+
+/* 主内容区：四列布局 */
+.content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* 左侧对话栏 */
+.leftSidebar {
+  min-width: 180px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--color-border);
+  background: var(--color-bg-white);
+  overflow: hidden;
+  min-height: 0;
+}
+
+/* 中间画布 */
+.centerPanel {
+  min-width: 200px;
+  flex-shrink: 0;
+  height: 100%;
+  background: var(--color-bg-white);
+  overflow: hidden;
+  border-right: 1px solid var(--color-border);
+}
+
+/* 窗口边缘拖拽调整手柄 */
+.resizeHandle {
+  width: 6px;
+  flex-shrink: 0;
+  cursor: col-resize !important;
+  background: transparent;
+  transition: background 0.15s, width 0.1s;
+  z-index: 20;
+  position: relative;
+}
+
+.resizeHandle:hover {
+  background: var(--color-primary);
+  width: 8px;
+}
+
+.resizeHandle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 30px;
+  border-radius: 1px;
+  background: transparent;
+  transition: background 0.15s;
+}
+
+.resizeHandle:hover::after {
+  background: rgba(255,255,255,0.6);
+}
+
+/* 拖拽中禁止文本选择 */
+.resizing {
+  user-select: none !important;
+}
+
+.resizing * {
+  cursor: col-resize !important;
+}
+
+/* 参数抽屉 — 从画布右侧滑出，宽度由 inline style 控制 */
+.paramDrawer {
+  height: 100%;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--color-bg-white);
+  border-right: 1px solid transparent;
+  transition: width 0.25s ease;
+}
+
+.paramDrawerOpen {
+  border-right-color: var(--color-border);
+}
+
+/* 右侧面板 — 预览为主 */
+.rightPanel {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-white);
+}
+
+.rightToolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-gray);
+  flex-shrink: 0;
+}
+
+.rightContent {
+  flex: 1;
+  overflow: hidden;
+}
+
+.loading {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+  background: var(--color-bg-gray);
+}
+
+.loadingText {
+  font-size: 15px;
+  color: var(--color-text-primary);
+}
+
+.loadingSubText {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}

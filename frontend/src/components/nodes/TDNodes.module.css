@@ -1,0 +1,109 @@
+.node {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  min-width: 120px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  position: relative;
+}
+
+.header {
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  opacity: 0.8;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.params {
+  margin-top: 4px;
+  font-size: 11px;
+  color: #666;
+}
+
+.paramRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.paramRow:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.paramKey {
+  color: #888;
+  flex-shrink: 0;
+}
+
+.paramKey::after {
+  content: ':';
+}
+
+.paramVal {
+  color: #333;
+  font-weight: 500;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 场景层 — 蓝色 */
+.nodeScene {
+  background: linear-gradient(135deg, #ebf4ff, #d6e8ff);
+  border: 1.5px solid #4A90D9;
+}
+.nodeScene .header { color: #2B5F9E; }
+
+/* 几何体层 — 绿色 */
+.nodeGeometry {
+  background: linear-gradient(135deg, #e8faf0, #c8f0d8);
+  border: 1.5px solid #389E0D;
+}
+.nodeGeometry .header { color: #237804; }
+
+/* 光照层 — 金色 */
+.nodeLight {
+  background: linear-gradient(135deg, #fffbe6, #fff1b8);
+  border: 1.5px solid #D48806;
+}
+.nodeLight .header { color: #AD6800; }
+
+/* 控制层 — 青色 */
+.nodeControl {
+  background: linear-gradient(135deg, #e6fffb, #b5f5ec);
+  border: 1.5px solid #08979C;
+}
+.nodeControl .header { color: #006D75; }
+
+/* 效果层 — 紫色 */
+.nodeEffect {
+  background: linear-gradient(135deg, #f5edff, #e8d5ff);
+  border: 1.5px solid #722ED1;
+}
+.nodeEffect .header { color: #531DAB; }
+
+/* 交互层 — 橙色 */
+.nodeInteraction {
+  background: linear-gradient(135deg, #fff7e6, #ffd8bf);
+  border: 1.5px solid #FA541C;
+}
+.nodeInteraction .header { color: #AD2102; }
+
+/* 2D绘图层 — 品红 */
+.nodeDrawing {
+  background: linear-gradient(135deg, #fff0f6, #ffd6e7);
+  border: 1.5px solid #EB2F96;
+}
+.nodeDrawing .header { color: #C41D7F; }

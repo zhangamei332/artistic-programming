@@ -1,0 +1,85 @@
+const VERIFICATION_SCRIPT = `
+<script>
+(function() {
+  var hasError = false;
+  var VERIFY_TIMEOUT = 3500;
+
+  function sendError(msg) {
+    if (hasError) return;
+    hasError = true;
+    parent.postMessage({ type: 'preview:error', message: String(msg) }, '*');
+  }
+
+  window.addEventListener('error', function(e) {
+    if (hasError) return;
+    var msg = e.message || 'Unknown error';
+    if (e.lineno) msg += ' (line ' + e.lineno + ')';
+    sendError(msg);
+  }, true);
+
+  window.addEventListener('unhandledrejection', function(e) {
+    sendError(e.reason && e.reason.message ? e.reason.message : String(e.reason));
+  });
+
+  parent.postMessage({ type: 'preview:loaded' }, '*');
+
+  setTimeout(function() {
+    if (!hasError) {
+      parent.postMessage({ type: 'preview:success' }, '*');
+    }
+  }, VERIFY_TIMEOUT);
+})();
+</script>`;
+
+function isFullHTML(code: string): boolean {
+  return /<!DOCTYPE\s+html/i.test(code) || /<html[\s>]/i.test(code);
+}
+
+function escapeForScriptTag(code: string): string {
+  return code.replace(/<\/script/gi, '<\\/script');
+}
+
+function cleanMarkdownArtifacts(code: string): string {
+  let c = code;
+  c = c.replace(/^```[\w#]*\s*\n?/gm, '');
+  c = c.replace(/\n?```\s*$/gm, '');
+  c = c.replace(/^(Here('s| is)|以下是|这是|输出|代码)[^\n]*\n/gi, '');
+  c = c.replace(/\n(希望|Enjoy|Let me know|如果有)[^\n]*$/gi, '');
+  return c.trim();
+}
+
+export function generateVerificationHTML(code: string): string {
+  const cleaned = cleanMarkdownArtifacts(code);
+
+  if (isFullHTML(cleaned)) {
+    const escaped = escapeForScriptTag(cleaned);
+    return escaped.replace('</head>', VERIFICATION_SCRIPT + '\n</head>');
+  }
+
+  const escapedCode = escapeForScriptTag(cleaned);
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+<style>
+  body { margin: 0; overflow: hidden; background: #1a1a2e; }
+  canvas { display: block; }
+</style>
+${VERIFICATION_SCRIPT}
+</head>
+<body>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+    }
+  }
+  </script>
+  <script src="https://unpkg.com/p5@1.9.0/lib/p5.min.js"></script>
+  <script type="module">
+${escapedCode}
+  </script>
+</body>
+</html>`;
+}

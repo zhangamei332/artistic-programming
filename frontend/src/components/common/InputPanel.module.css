@@ -1,0 +1,168 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--color-border);
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.dragOver {
+  background: rgba(74, 144, 217, 0.08);
+  outline: 2px dashed var(--color-primary);
+  outline-offset: -4px;
+  border-radius: 4px;
+}
+
+/* 文件占位框容器 */
+.fileSlots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.fileSlot {
+  width: 56px;
+  height: 56px;
+  border: 1.5px dashed #c0c4cc;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.fileSlot:hover {
+  border-color: var(--color-primary);
+  background: rgba(74, 144, 217, 0.04);
+}
+
+.fileSlotCompact {
+  width: 38px;
+  height: 38px;
+}
+
+.fileSlotFilled {
+  border-style: solid;
+  border-color: #d9d9d9;
+}
+
+.plusIcon {
+  font-size: 18px;
+  color: #bfbfbf;
+}
+
+/* 文件预览 */
+.filePreview {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.thumb {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.fileIcon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.fileName {
+  font-size: 8px;
+  color: #666;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  padding: 0 2px;
+  position: absolute;
+  bottom: 2px;
+}
+
+.removeBtn {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  font-size: 12px;
+  line-height: 16px;
+  text-align: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.fileSlot:hover .removeBtn {
+  opacity: 1;
+}
+
+/* 格式提示 */
+.formatHint {
+  font-size: 9px;
+  color: #bfbfbf;
+  line-height: 1.3;
+  user-select: none;
+}
+
+/* 输入行 */
+.inputRow {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.adjustRow {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.textInput {
+  width: 100%;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+
+.adjustInput {
+  width: 100%;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+}
+
+.modelSelect {
+  width: 100%;
+}
+
+.generateBtn {
+  width: 100%;
+  height: 36px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.adjustBtn {
+  width: 100%;
+  height: 32px;
+  font-size: 12px;
+  font-weight: 500;
+}

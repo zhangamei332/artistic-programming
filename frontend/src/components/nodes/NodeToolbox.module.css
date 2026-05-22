@@ -1,0 +1,151 @@
+.toolbox {
+  width: 44px;
+  background: var(--color-bg-gray);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: width 0.2s;
+  flex-shrink: 0;
+}
+
+.toolbox.expanded {
+  width: 180px;
+}
+
+.toggleBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  border-bottom: 1px solid var(--color-border);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.toggleBtn:hover {
+  background: #e8ecf1;
+  color: var(--color-primary);
+}
+
+.categoryHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  border-bottom: 1px solid var(--color-border);
+  letter-spacing: 1px;
+}
+
+.categoryHeader:hover {
+  filter: brightness(0.95);
+}
+
+.catScene { background: #ebf4ff; color: #2B5F9E; }
+.catGeometry { background: #e8faf0; color: #237804; }
+.catLight { background: #fffbe6; color: #AD6800; }
+.catControl { background: #e6fffb; color: #006D75; }
+.catEffect { background: #f5edff; color: #531DAB; }
+.catInteraction { background: #fff2e8; color: #AD2102; }
+.catDrawing { background: #fff0f6; color: #C41D7F; }
+
+.collapsedLabel {
+  writing-mode: vertical-rl;
+  letter-spacing: 2px;
+}
+
+.expandedLabel {
+  width: 100%;
+  text-align: center;
+}
+
+.itemList {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 0;
+}
+
+.dragItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: grab;
+  user-select: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dragItem:hover {
+  background: rgba(74, 144, 217, 0.1);
+}
+
+.dragItem:active {
+  cursor: grabbing;
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dotScene { background: #4A90D9; }
+.dotGeometry { background: #389E0D; }
+.dotLight { background: #D48806; }
+.dotControl { background: #08979C; }
+.dotEffect { background: #722ED1; }
+.dotInteraction { background: #FA541C; }
+.dotDrawing { background: #EB2F96; }
+
+/* expandable sub-group inside a category */
+.subGroup {
+  margin-left: 6px;
+  border-left: 1px solid var(--color-border);
+}
+
+.subGroupHeader {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  color: var(--color-text-secondary);
+}
+
+.subGroupHeader:hover {
+  background: rgba(0,0,0,0.03);
+}
+
+.subGroupArrow {
+  font-size: 8px;
+  transition: transform 0.15s;
+  flex-shrink: 0;
+}
+
+.subGroupArrowOpen {
+  transform: rotate(90deg);
+}
+
+.subItems {
+  display: flex;
+  flex-direction: column;
+}
+
+.subItems .dragItem {
+  padding-left: 22px;
+}
