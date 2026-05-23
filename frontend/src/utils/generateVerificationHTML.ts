@@ -76,7 +76,7 @@ ${VERIFICATION_SCRIPT}
     }
   }
   </script>
-  <script src="https://unpkg.com/p5@1.9.0/lib/p5.min.js"></script>
+  <script src="https://unpkg.com/gsap@3.12.5/dist/gsap.min.js"></script>
   <script type="module">
 ${escapedCode}
   </script>

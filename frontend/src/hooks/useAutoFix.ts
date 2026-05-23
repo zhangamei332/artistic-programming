@@ -28,9 +28,11 @@ export interface HistoryEntry {
   code: string;
   nodes: NodeData[];
   edges: EdgeData[];
-  language: 'threejs' | 'p5js';
+  language: 'threejs';
   model: string;
   timestamp: number;
+  parentId?: string; // 子级记录：指向父级历史记录ID
+  diffSummary?: string; // 相对父级的参数差异摘要
 }
 
 export type Phase = 'idle' | 'generating' | 'verifying' | 'fixing' | 'success' | 'failed';
@@ -39,8 +41,40 @@ const MAX_ATTEMPTS = 3;
 const VERIFY_TIMEOUT = 10000;
 const MAX_HISTORY = 50;
 
+/** Compute a human-readable diff between two node sets */
+function computeNodeDiff(
+  oldNodes: NodeData[],
+  newNodes: NodeData[],
+): string {
+  const diffs: string[] = [];
+  const oldMap = new Map(oldNodes.map((n) => [n.label, n]));
+  const newMap = new Map(newNodes.map((n) => [n.label, n]));
+
+  for (const [label, newNode] of newMap) {
+    const oldNode = oldMap.get(label);
+    if (!oldNode) {
+      diffs.push(`+${label}`);
+      continue;
+    }
+    for (const [key, val] of Object.entries(newNode.params)) {
+      const oldVal = oldNode.params[key];
+      if (oldVal !== val && key !== 'interaction') {
+        const oldStr = typeof oldVal === 'number' ? (oldVal as number).toFixed(2) : String(oldVal);
+        const newStr = typeof val === 'number' ? (val as number).toFixed(2) : String(val);
+        diffs.push(`${label}.${key}: ${oldStr}→${newStr}`);
+      }
+    }
+  }
+  for (const [label] of oldMap) {
+    if (!newMap.has(label)) {
+      diffs.push(`-${label}`);
+    }
+  }
+  return diffs.slice(0, 6).join(', ') || '参数已更新';
+}
+
 /** Infrastructure nodes are always relevant, even without connections */
-const INFRA_NODES = new Set(['scene', 'camera', 'renderer', 'setup', 'draw', 'animation']);
+const INFRA_NODES = new Set(['scene', 'camera', 'renderer', 'setup', 'draw', 'animation', 'comp_root']);
 
 /** Filter out nodes that have no connections AND no editable parameters (not infrastructure) */
 function filterRelevantNodes(nodes: NodeData[], edges: EdgeData[]): NodeData[] {
@@ -70,9 +104,12 @@ export function useAutoFix() {
   const [generationKey, setGenerationKey] = useState(0);
   const [adjustExplanation, setAdjustExplanation] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
+  const [activeBaseHistoryId, setActiveBaseHistoryId] = useState<string | null>(null);
+  const activeBaseRef = useRef<string | null>(null);
+  const parentNodesSnapshotRef = useRef<NodeData[]>([]); // 父级节点原始快照，用于diff
 
   const attemptRef = useRef(1);
-  const languageRef = useRef<'threejs' | 'p5js'>('threejs');
+  const languageRef = useRef<'threejs'>('threejs');
   const nodesRef = useRef<NodeData[]>([]);
   const edgesRef = useRef<EdgeData[]>([]);
   const codeRef = useRef<string>('');
@@ -124,10 +161,20 @@ export function useAutoFix() {
   );
 
   const restoreHistory = useCallback((entry: HistoryEntry) => {
+    // 如果点击的是已激活的记录 → 取消选择
+    if (activeBaseRef.current === entry.id) {
+      setActiveBaseHistoryId(null);
+      activeBaseRef.current = null;
+      setAdjustExplanation(null);
+      return;
+    }
+
     codeRef.current = entry.code;
     languageRef.current = entry.language;
     nodesRef.current = JSON.parse(JSON.stringify(entry.nodes));
     edgesRef.current = JSON.parse(JSON.stringify(entry.edges));
+    lastPromptRef.current = entry.prompt;
+    lastModelRef.current = entry.model;
 
     setFinalCode(entry.code);
     setFinalNodes(entry.nodes);
@@ -136,11 +183,26 @@ export function useAutoFix() {
     setPreviewKey((k) => k + 1);
     setGenerationKey((k) => k + 1);
     setCorrectionLog([]);
-    setAdjustExplanation(`已恢复历史记录: ${entry.prompt.slice(0, 50)}...`);
+    setActiveBaseHistoryId(entry.id);
+    activeBaseRef.current = entry.id;
+    parentNodesSnapshotRef.current = JSON.parse(JSON.stringify(entry.nodes));
+    setAdjustExplanation(`已恢复历史记录: ${entry.prompt.slice(0, 50)}...（以此为起点调整将生成子级记录）`);
   }, []);
 
   const deleteHistory = useCallback((id: string) => {
     setHistory((prev) => prev.filter((e) => e.id !== id));
+  }, []);
+
+  const moveToParent = useCallback((entryId: string, newParentId: string | null) => {
+    setHistory((prev) => {
+      const next = prev.map((e) => {
+        if (e.id === entryId) {
+          return { ...e, parentId: newParentId || undefined };
+        }
+        return e;
+      });
+      return next;
+    });
   }, []);
 
   // --- Verify flow ---
@@ -251,7 +313,7 @@ export function useAutoFix() {
   }, [addLog, clearVerifyTimer, saveToHistory]);
 
   const startAutoFix = useCallback(
-    async (prompt: string, model: string) => {
+    async (prompt: string, model: string, files: File[] = []) => {
       attemptRef.current = 1;
       lastPromptRef.current = prompt;
       lastModelRef.current = model;
@@ -260,21 +322,29 @@ export function useAutoFix() {
       setFinalNodes(null);
       setFinalEdges([]);
       setAdjustExplanation(null);
+      setActiveBaseHistoryId(null);
+      activeBaseRef.current = null;
       setPhase('generating');
       setGenerationKey((k) => k + 1);
 
       try {
+        // Build file info for the AI
+        const fileNames = files.map((f) => f.name);
+        const fileInfo = fileNames.length > 0
+          ? `\n已上传文件: ${fileNames.join(', ')}\n请在你的代码注释中使用 @node:file_xxx=文件名 标注文件引用节点，并用 @connect 连接它们到使用该文件的节点。`
+          : '';
+
         const response = await fetch('/api/generate/text', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: prompt.trim(), model }),
+          body: JSON.stringify({ prompt: prompt.trim() + fileInfo, model }),
         });
 
         const result = await response.json();
 
         if (result.success && result.data?.code) {
           const code = result.data.code;
-          const language: 'threejs' | 'p5js' =
+          const language: 'threejs' =
             result.data.language || 'threejs';
           const nodes: NodeData[] = result.data.nodes || [];
           const edges: EdgeData[] = result.data.edges || [];
@@ -365,22 +435,52 @@ export function useAutoFix() {
       const result = await response.json();
       if (result.success && result.data?.code) {
         const newCode = result.data.code;
+        const apiNodes: NodeData[] = result.data.nodes;
+        const apiEdges: EdgeData[] = result.data.edges;
+        // 空数组在JS中是truthy的，必须用length检测
+        const newNodes: NodeData[] = (apiNodes && apiNodes.length > 0) ? apiNodes : nodes;
+        const newEdges: EdgeData[] = (apiEdges && apiEdges.length > 0) ? apiEdges : edges;
         codeRef.current = newCode;
+        nodesRef.current = newNodes;
+        edgesRef.current = newEdges;
         setFinalCode(newCode);
+        setFinalNodes(newNodes);
+        setFinalEdges(newEdges);
         setPreviewKey((k) => k + 1);
+        setGenerationKey((k) => k + 1);
         setPhase('success');
-        // Save to history so the updated version is recorded
+        // Compute diff against parent's original snapshot (not edited nodes)
+        const parentNodesForParams = activeBaseRef.current
+          ? parentNodesSnapshotRef.current
+          : [];
+        const diffSummaryForParams = activeBaseRef.current
+          ? computeNodeDiff(parentNodesForParams, newNodes)
+          : undefined;
+
+        // Insert child history under active base (or at top if no base)
         setHistory((prev) => {
+          const baseId = activeBaseRef.current;
           const entry: HistoryEntry = {
             id: `hist_${Date.now()}`,
             prompt: `[参数调整] ${lastPromptRef.current.slice(0, 80)}`,
             code: newCode,
-            nodes: JSON.parse(JSON.stringify(nodes)),
-            edges: JSON.parse(JSON.stringify(edges)),
+            nodes: JSON.parse(JSON.stringify(newNodes)),
+            edges: JSON.parse(JSON.stringify(newEdges)),
             language,
             model: lastModelRef.current,
             timestamp: Date.now(),
+            parentId: baseId || undefined,
+            diffSummary: diffSummaryForParams,
           };
+          if (baseId) {
+            // 插入到父级记录正下方（作为其第一个子级）
+            const baseIdx = prev.findIndex((e) => e.id === baseId);
+            if (baseIdx >= 0) {
+              const next = [...prev];
+              next.splice(baseIdx + 1, 0, entry);
+              return next.slice(0, MAX_HISTORY);
+            }
+          }
           return [entry, ...prev].slice(0, MAX_HISTORY);
         });
       } else {
@@ -417,23 +517,51 @@ export function useAutoFix() {
         const result = await response.json();
         if (result.success && result.data?.code) {
           const newCode = result.data.code;
+          const apiNodes: NodeData[] = result.data.nodes;
+          const apiEdges: EdgeData[] = result.data.edges;
+          const newNodes: NodeData[] = (apiNodes && apiNodes.length > 0) ? apiNodes : nodesRef.current;
+          const newEdges: EdgeData[] = (apiEdges && apiEdges.length > 0) ? apiEdges : edgesRef.current;
           codeRef.current = newCode;
+          nodesRef.current = newNodes;
+          edgesRef.current = newEdges;
           setFinalCode(newCode);
+          setFinalNodes(newNodes);
+          setFinalEdges(newEdges);
           setPreviewKey((k) => k + 1);
+          setGenerationKey((k) => k + 1);
           setPhase('success');
           setAdjustExplanation(`已根据「${adjustPrompt.trim()}」调整代码`);
-          // Save adjustment to history
+          // Compute diff against parent if this is a child
+          const parentNodesForDiff = activeBaseRef.current
+            ? nodesRef.current // pre-adjustment nodes (parent's)
+            : [];
+          const diffSummary = activeBaseRef.current
+            ? computeNodeDiff(parentNodesForDiff, newNodes)
+            : undefined;
+
+          // Insert child history under active base (or at top if no base)
           setHistory((prev) => {
+            const baseId = activeBaseRef.current;
             const entry: HistoryEntry = {
               id: `hist_${Date.now()}`,
               prompt: `[调整] ${adjustPrompt.trim()}`,
               code: newCode,
-              nodes: JSON.parse(JSON.stringify(nodesRef.current)),
-              edges: JSON.parse(JSON.stringify(edgesRef.current)),
+              nodes: JSON.parse(JSON.stringify(newNodes)),
+              edges: JSON.parse(JSON.stringify(newEdges)),
               language: languageRef.current,
               model: lastModelRef.current,
               timestamp: Date.now(),
+              parentId: baseId || undefined,
+              diffSummary,
             };
+            if (baseId) {
+              const baseIdx = prev.findIndex((e) => e.id === baseId);
+              if (baseIdx >= 0) {
+                const next = [...prev];
+                next.splice(baseIdx + 1, 0, entry);
+                return next.slice(0, MAX_HISTORY);
+              }
+            }
             return [entry, ...prev].slice(0, MAX_HISTORY);
           });
         } else {
@@ -448,6 +576,330 @@ export function useAutoFix() {
       }
     },
     [],
+  );
+
+  // --- Save params locally only (no preview refresh) ---
+  const saveNodeParamsOnly = useCallback(() => {
+    const nodes = nodesRef.current;
+    if (nodes.length === 0) return;
+    setFinalNodes([...nodes]);
+    setAdjustExplanation('参数已保存到本地，可继续调整其他节点后统一应用');
+  }, []);
+
+  // --- Sync canvas mutations (drag-drop nodes, connect edges) back to refs ---
+  const syncFromCanvas = useCallback((nodes: NodeData[], edges: EdgeData[]) => {
+    nodesRef.current = nodes;
+    edgesRef.current = edges;
+    setFinalNodes([...nodes]);
+    setFinalEdges([...edges]);
+  }, []);
+
+  // --- Edge management (for ParamPanel connections) ---
+  const addEdge = useCallback((sourceId: string, targetId: string) => {
+    const existing = edgesRef.current.find(
+      (e) => e.source === sourceId && e.target === targetId,
+    );
+    if (existing) return;
+    const newEdge: EdgeData = {
+      id: `edge_${sourceId}_${targetId}_${Date.now()}`,
+      source: sourceId,
+      target: targetId,
+    };
+    edgesRef.current = [...edgesRef.current, newEdge];
+    setFinalEdges([...edgesRef.current]);
+    setGenerationKey((k) => k + 1);
+  }, []);
+
+  const removeEdge = useCallback((sourceId: string, targetId: string) => {
+    edgesRef.current = edgesRef.current.filter(
+      (e) => !(e.source === sourceId && e.target === targetId),
+    );
+    setFinalEdges([...edgesRef.current]);
+    setGenerationKey((k) => k + 1);
+  }, []);
+
+  // --- Generate code purely from node graph (no existing code required) ---
+  const generateFromGraph = useCallback(async () => {
+    const nodes = nodesRef.current;
+    const edges = edgesRef.current;
+    const currentCode = codeRef.current;
+    const language = languageRef.current;
+
+    if (nodes.length === 0) return;
+
+    const graphText = buildGraphDescription({
+      nodes,
+      edges,
+      originalCode: currentCode || '',
+      language,
+    });
+
+    setPhase('generating');
+    setCorrectionLog([]);
+
+    try {
+      if (currentCode) {
+        // Has existing code → use fix endpoint to update
+        const response = await fetch('/api/generate/fix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: currentCode,
+            error: `请根据以下节点图重新生成完整代码（这是基于节点图的代码重构，请仔细遵循每个节点的参数和连线关系）:\n${graphText}`,
+            language,
+          }),
+        });
+
+        const result = await response.json();
+        if (result.success && result.data?.code) {
+          const newCode = result.data.code;
+          const apiNodes: NodeData[] = result.data.nodes;
+          const apiEdges: EdgeData[] = result.data.edges;
+          const newNodes: NodeData[] = (apiNodes && apiNodes.length > 0) ? apiNodes : nodes;
+          const newEdges: EdgeData[] = (apiEdges && apiEdges.length > 0) ? apiEdges : edges;
+          codeRef.current = newCode;
+          nodesRef.current = newNodes;
+          edgesRef.current = newEdges;
+          setFinalCode(newCode);
+          setFinalNodes(newNodes);
+          setFinalEdges(newEdges);
+          setPreviewKey((k) => k + 1);
+          setGenerationKey((k) => k + 1);
+          setPhase('success');
+          setAdjustExplanation('已根据节点图重新生成代码并预览');
+
+          setHistory((prev) => {
+            const entry: HistoryEntry = {
+              id: `hist_${Date.now()}`,
+              prompt: '[节点图生成] 基于节点结构重新生成代码',
+              code: newCode,
+              nodes: JSON.parse(JSON.stringify(newNodes)),
+              edges: JSON.parse(JSON.stringify(newEdges)),
+              language,
+              model: lastModelRef.current || 'deepseek',
+              timestamp: Date.now(),
+              parentId: activeBaseRef.current || undefined,
+            };
+            const baseId = activeBaseRef.current;
+            if (baseId) {
+              const baseIdx = prev.findIndex((e) => e.id === baseId);
+              if (baseIdx >= 0) {
+                const next = [...prev];
+                next.splice(baseIdx + 1, 0, entry);
+                return next.slice(0, MAX_HISTORY);
+              }
+            }
+            return [entry, ...prev].slice(0, MAX_HISTORY);
+          });
+        } else {
+          setPhase('success');
+          setAdjustExplanation('代码生成失败，请检查节点配置');
+        }
+      } else {
+        // No existing code → use generate endpoint with graph text as prompt
+        lastPromptRef.current = graphText;
+        lastModelRef.current = 'deepseek';
+        attemptRef.current = 1;
+
+        const response = await fetch('/api/generate/text', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prompt: graphText, model: 'deepseek' }),
+        });
+
+        const result = await response.json();
+        if (result.success && result.data?.code) {
+          const code = result.data.code;
+          const lang: 'threejs' = result.data.language || 'threejs';
+          const nodes: NodeData[] = result.data.nodes || [];
+          const edgesData: EdgeData[] = result.data.edges || [];
+
+          languageRef.current = lang;
+          const filteredNodes = filterRelevantNodes(nodes, edgesData);
+          const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
+          const filteredEdges = edgesData.filter(
+            (e) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target),
+          );
+          nodesRef.current = filteredNodes;
+          edgesRef.current = filteredEdges;
+          codeRef.current = code;
+
+          setFinalCode(code);
+          setFinalNodes(filteredNodes);
+          setFinalEdges(filteredEdges);
+          setPreviewKey((k) => k + 1);
+          setGenerationKey((k) => k + 1);
+          setPhase('success');
+          setAdjustExplanation('已根据节点图全新生成代码并预览');
+
+          setHistory((prev) => {
+            const entry: HistoryEntry = {
+              id: `hist_${Date.now()}`,
+              prompt: '[节点图生成] 基于节点结构全新生成代码',
+              code,
+              nodes: JSON.parse(JSON.stringify(filteredNodes)),
+              edges: JSON.parse(JSON.stringify(filteredEdges)),
+              language: lang,
+              model: 'deepseek',
+              timestamp: Date.now(),
+            };
+            return [entry, ...prev].slice(0, MAX_HISTORY);
+          });
+        } else {
+          console.error('节点图生成失败:', result.error);
+          setPhase('failed');
+          setAdjustExplanation('代码生成失败，请检查节点配置');
+        }
+      }
+    } catch (err) {
+      console.error('节点图生成请求失败:', err);
+      setPhase('success');
+      setAdjustExplanation('请求发送失败，请检查网络');
+    }
+  }, []);
+
+  // --- Code transform: user pastes external code + instruction ---
+  const transformCode = useCallback(
+    async (sourceCode: string, instruction: string) => {
+      if (!sourceCode.trim() || !instruction.trim()) return;
+
+      attemptRef.current = 1;
+      lastPromptRef.current = `[代码转化] ${instruction.trim()}`;
+      lastModelRef.current = 'deepseek';
+      setCorrectionLog([]);
+      setFinalCode(null);
+      setFinalNodes(null);
+      setFinalEdges([]);
+      setAdjustExplanation(null);
+      setActiveBaseHistoryId(null);
+      activeBaseRef.current = null;
+      setPhase('generating');
+      setGenerationKey((k) => k + 1);
+
+      try {
+        const response = await fetch('/api/generate/fix', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: sourceCode,
+            error: `用户要求对以下代码进行转化:\n${instruction.trim()}\n请根据以上指令修改代码，保持 @node/@connect 注释标记。`,
+            language: 'threejs',
+          }),
+        });
+
+        const result = await response.json();
+        if (result.success && result.data?.code) {
+          const code = result.data.code;
+          const apiNodes: NodeData[] = result.data.nodes;
+          const apiEdges: EdgeData[] = result.data.edges;
+          const nodes: NodeData[] = apiNodes && apiNodes.length > 0 ? apiNodes : [];
+          const edges: EdgeData[] = apiEdges && apiEdges.length > 0 ? apiEdges : [];
+
+          languageRef.current = 'threejs';
+          const filteredNodes = filterRelevantNodes(nodes, edges);
+          const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
+          const filteredEdges = edges.filter(
+            (e) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target),
+          );
+          nodesRef.current = filteredNodes;
+          edgesRef.current = filteredEdges;
+
+          addLog({
+            iteration: 1,
+            code,
+            error: null,
+            phase: 'generating',
+          });
+
+          startVerify(code);
+        } else {
+          console.error('代码转化失败:', result.error);
+          setPhase('failed');
+          setAdjustExplanation(`代码转化失败: ${result.error || '未知错误'}`);
+        }
+      } catch (err) {
+        console.error('代码转化请求失败:', err);
+        setPhase('failed');
+        setAdjustExplanation('代码转化请求发送失败，请检查网络');
+      }
+    },
+    [addLog, startVerify],
+  );
+
+  // --- Image to code: user uploads an image + instruction ---
+  const imageToCode = useCallback(
+    async (imageFile: File, instruction: string) => {
+      if (!instruction.trim()) return;
+
+      attemptRef.current = 1;
+      lastPromptRef.current = `[图生代码] ${instruction.trim()}`;
+      lastModelRef.current = 'deepseek';
+      setCorrectionLog([]);
+      setFinalCode(null);
+      setFinalNodes(null);
+      setFinalEdges([]);
+      setAdjustExplanation(null);
+      setActiveBaseHistoryId(null);
+      activeBaseRef.current = null;
+      setPhase('generating');
+      setGenerationKey((k) => k + 1);
+
+      try {
+        // convert image file to base64 data URL
+        const imageDataUrl = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error('Failed to read image file'));
+          reader.readAsDataURL(imageFile);
+        });
+
+        const response = await fetch('/api/generate/image-to-code', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: imageDataUrl,
+            instruction: instruction.trim(),
+            model: 'deepseek',
+          }),
+        });
+
+        const result = await response.json();
+        if (result.success && result.data?.code) {
+          const code = result.data.code;
+          const apiNodes: NodeData[] = result.data.nodes;
+          const apiEdges: EdgeData[] = result.data.edges;
+          const nodes: NodeData[] = apiNodes && apiNodes.length > 0 ? apiNodes : [];
+          const edges: EdgeData[] = apiEdges && apiEdges.length > 0 ? apiEdges : [];
+
+          languageRef.current = 'threejs';
+          const filteredNodes = filterRelevantNodes(nodes, edges);
+          const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
+          const filteredEdges = edges.filter(
+            (e) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target),
+          );
+          nodesRef.current = filteredNodes;
+          edgesRef.current = filteredEdges;
+
+          addLog({
+            iteration: 1,
+            code,
+            error: null,
+            phase: 'generating',
+          });
+
+          startVerify(code);
+        } else {
+          console.error('图生代码失败:', result.error);
+          setPhase('failed');
+          setAdjustExplanation(`图生代码失败: ${result.error || '未知错误'}`);
+        }
+      } catch (err) {
+        console.error('图生代码请求失败:', err);
+        setPhase('failed');
+        setAdjustExplanation('图生代码请求发送失败，请检查网络');
+      }
+    },
+    [addLog, startVerify],
   );
 
   const refreshPreview = useCallback(() => {
@@ -472,10 +924,19 @@ export function useAutoFix() {
     onVerifierSuccess,
     updateNodeParams,
     regenerateFromParams,
+    saveNodeParamsOnly,
     adjustCode,
     refreshPreview,
     restoreHistory,
     deleteHistory,
+    moveToParent,
+    syncFromCanvas,
+    addEdge,
+    removeEdge,
+    generateFromGraph,
+    transformCode,
+    imageToCode,
+    activeBaseHistoryId,
     currentAttempt: attemptRef.current,
     maxAttempts: MAX_ATTEMPTS,
   };

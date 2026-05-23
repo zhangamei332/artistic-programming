@@ -1,13 +1,23 @@
 import { useState, useRef, useCallback } from 'react';
-import { Input, Button, Select } from 'antd';
-import { SendOutlined, PlusOutlined, ToolOutlined } from '@ant-design/icons';
+import { Input, Button, Select, Tooltip, Modal, message, Upload } from 'antd';
+import {
+  SendOutlined,
+  ToolOutlined,
+  FolderOpenOutlined,
+  SwapOutlined,
+  FileImageOutlined,
+  InboxOutlined,
+} from '@ant-design/icons';
 import styles from './InputPanel.module.css';
 
 const { TextArea } = Input;
+const { Dragger } = Upload;
 
 interface InputPanelProps {
-  onGenerate: (prompt: string, model: string) => void;
+  onGenerate: (prompt: string, model: string, files: File[]) => void;
   onAdjust?: (prompt: string) => void;
+  onCodeTransform?: (sourceCode: string, instruction: string) => void;
+  onImageToCode?: (imageFile: File, instruction: string) => void;
   isProcessing: boolean;
   hasCode: boolean;
 }
@@ -18,29 +28,153 @@ const models = [
   { value: 'gpt', label: 'GPT-4' },
 ];
 
-const SUPPORTED_EXTENSIONS = [
-  '.png', '.jpg', '.jpeg', '.svg',
-  '.txt', '.csv', '.xlsx', '.xls',
-  '.mp4', '.webm',
-  '.obj', '.glb', '.gltf',
-];
-
 interface FileEntry {
   file: File;
   previewUrl: string | null;
 }
 
-export function InputPanel({ onGenerate, onAdjust, isProcessing, hasCode }: InputPanelProps) {
+/** 4 fixed format-labeled upload slots */
+const FIXED_SLOTS = [
+  { key: 'svg', label: 'SVG', accept: '.svg', icon: '◰' },
+  { key: 'txt', label: 'TXT', accept: '.txt,.csv,.xlsx,.xls', icon: '≡' },
+  { key: 'obj', label: 'OBJ', accept: '.obj,.glb,.gltf', icon: '◻' },
+  { key: 'mp4', label: 'MP4', accept: '.mp4,.webm', icon: '▶' },
+] as const;
+
+type SlotKey = typeof FIXED_SLOTS[number]['key'];
+
+export function InputPanel({ onGenerate, onAdjust, onCodeTransform, onImageToCode, isProcessing, hasCode }: InputPanelProps) {
   const [prompt, setPrompt] = useState('');
   const [adjustPrompt, setAdjustPrompt] = useState('');
   const [model, setModel] = useState('deepseek');
-  const [files, setFiles] = useState<FileEntry[]>([]);
+  const [slotFiles, setSlotFiles] = useState<Record<SlotKey, FileEntry | null>>({
+    svg: null, txt: null, obj: null, mp4: null,
+  });
   const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
+  // code-transform modal
+  const [transformOpen, setTransformOpen] = useState(false);
+  const [sourceCode, setSourceCode] = useState('');
+  const [transformInstruction, setTransformInstruction] = useState('');
+
+  // image-to-code modal
+  const [imgToCodeOpen, setImgToCodeOpen] = useState(false);
+  const [imgToCodeImage, setImgToCodeImage] = useState<File | null>(null);
+  const [imgToCodePreview, setImgToCodePreview] = useState<string | null>(null);
+  const [imgToCodeInstruction, setImgToCodeInstruction] = useState('');
+
+  // ---- slot file handlers ----
+
+  const setSlotFile = useCallback((key: SlotKey, entry: FileEntry | null) => {
+    setSlotFiles((prev) => {
+      // revoke old preview URL
+      if (prev[key]?.previewUrl) URL.revokeObjectURL(prev[key].previewUrl!);
+      return { ...prev, [key]: entry };
+    });
+  }, []);
+
+  const handleSlotClick = useCallback((key: SlotKey, accept: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = accept;
+    input.onchange = () => {
+      const f = input.files?.[0];
+      if (f) {
+        const previewUrl = f.type.startsWith('image/') || f.type.startsWith('video/')
+          ? URL.createObjectURL(f) : null;
+        setSlotFile(key, { file: f, previewUrl });
+      }
+    };
+    input.click();
+  }, [setSlotFile]);
+
+  const handleSlotDrop = useCallback((e: React.DragEvent, key: SlotKey) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const f = e.dataTransfer.files?.[0];
+    if (f) {
+      const previewUrl = f.type.startsWith('image/') || f.type.startsWith('video/')
+        ? URL.createObjectURL(f) : null;
+      setSlotFile(key, { file: f, previewUrl });
+    }
+  }, [setSlotFile]);
+
+  const handleSlotDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const removeSlotFile = useCallback((key: SlotKey) => {
+    setSlotFile(key, null);
+  }, [setSlotFile]);
+
+  // collect all slot files for generation
+  const collectAllFiles = useCallback((): File[] => {
+    const result: File[] = [];
+    for (const key of Object.keys(slotFiles) as SlotKey[]) {
+      if (slotFiles[key]) result.push(slotFiles[key]!.file);
+    }
+    return result;
+  }, [slotFiles]);
+
+  // ---- panel drag & drop (for general file area) ----
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      // try to match dropped files to slots by extension
+      for (const f of Array.from(e.dataTransfer.files)) {
+        const ext = '.' + f.name.split('.').pop()?.toLowerCase();
+        for (const slot of FIXED_SLOTS) {
+          if (slot.accept.includes(ext)) {
+            const previewUrl = f.type.startsWith('image/') || f.type.startsWith('video/')
+              ? URL.createObjectURL(f) : null;
+            setSlotFile(slot.key, { file: f, previewUrl });
+            break;
+          }
+        }
+      }
+    }
+  }, [setSlotFile]);
+
+  // ---- folder link ----
+
+  const folderToSlots = useCallback((newFiles: FileList | File[]) => {
+    const arr = Array.from('length' in newFiles ? newFiles : []);
+    for (const f of arr) {
+      if (!(f instanceof File)) continue;
+      const ext = '.' + f.name.split('.').pop()?.toLowerCase();
+      for (const slot of FIXED_SLOTS) {
+        if (slot.accept.includes(ext)) {
+          const previewUrl = f.type.startsWith('image/') || f.type.startsWith('video/')
+            ? URL.createObjectURL(f) : null;
+          setSlotFile(slot.key, { file: f, previewUrl });
+          break;
+        }
+      }
+    }
+  }, [setSlotFile]);
+
+  // ---- generate / adjust / transform ----
 
   const handleGenerate = () => {
     if (!prompt.trim() || isProcessing) return;
-    onGenerate(prompt, model);
+    onGenerate(prompt, model, collectAllFiles());
   };
 
   const handleAdjust = () => {
@@ -49,66 +183,37 @@ export function InputPanel({ onGenerate, onAdjust, isProcessing, hasCode }: Inpu
     setAdjustPrompt('');
   };
 
-  const addFiles = useCallback((newFiles: FileList | File[]) => {
-    const entries: FileEntry[] = [];
-    const arr = 'length' in newFiles ? Array.from(newFiles) : newFiles;
-    for (const f of arr) {
-      if (!(f instanceof File)) continue;
-      let previewUrl: string | null = null;
-      if (f.type.startsWith('image/') || f.type.startsWith('video/')) {
-        previewUrl = URL.createObjectURL(f);
-      }
-      entries.push({ file: f, previewUrl });
+  const handleTransform = () => {
+    if (!sourceCode.trim() || !transformInstruction.trim() || isProcessing || !onCodeTransform) return;
+    onCodeTransform(sourceCode.trim(), transformInstruction.trim());
+    setTransformOpen(false);
+    setSourceCode('');
+    setTransformInstruction('');
+  };
+
+  // ---- image-to-code ----
+
+  const handleImgToCode = () => {
+    if (!imgToCodeImage || !imgToCodeInstruction.trim() || isProcessing || !onImageToCode) return;
+    onImageToCode(imgToCodeImage, imgToCodeInstruction.trim());
+    setImgToCodeOpen(false);
+    setImgToCodeImage(null);
+    if (imgToCodePreview) { URL.revokeObjectURL(imgToCodePreview); }
+    setImgToCodePreview(null);
+    setImgToCodeInstruction('');
+  };
+
+  const handleImgDrop = useCallback((file: File) => {
+    if (!file.type.startsWith('image/')) {
+      message.warning('请上传图片文件');
+      return false;
     }
-    setFiles((prev) => {
-      const merged = [...prev, ...entries];
-      return merged.slice(0, 12); // max 12 files
-    });
+    setImgToCodeImage(file);
+    setImgToCodePreview(URL.createObjectURL(file));
+    return false; // prevent default upload behavior
   }, []);
 
-  const removeFile = useCallback((idx: number) => {
-    setFiles((prev) => {
-      const next = prev.slice();
-      if (next[idx]?.previewUrl) URL.revokeObjectURL(next[idx].previewUrl!);
-      next.splice(idx, 1);
-      return next;
-    });
-  }, []);
-
-  const handleFileClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      addFiles(e.target.files);
-    }
-    e.target.value = '';
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragOver(false);
-    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      addFiles(e.dataTransfer.files);
-    }
-  };
-
-  const placeholderCount = Math.max(3, files.length + 1);
-  const isCompact = files.length > 3;
+  const hasAnyFile = Object.values(slotFiles).some((f) => f !== null);
 
   return (
     <div
@@ -117,16 +222,18 @@ export function InputPanel({ onGenerate, onAdjust, isProcessing, hasCode }: Inpu
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* 文件占位框 */}
+      {/* 4 fixed format-labeled upload slots */}
       <div className={styles.fileSlots}>
-        {Array.from({ length: placeholderCount }).map((_, idx) => {
-          const entry = files[idx];
+        {FIXED_SLOTS.map((slot) => {
+          const entry = slotFiles[slot.key];
           return (
             <div
-              key={idx}
-              className={`${styles.fileSlot} ${isCompact ? styles.fileSlotCompact : ''} ${entry ? styles.fileSlotFilled : ''}`}
-              onClick={!entry ? handleFileClick : undefined}
-              title={entry ? entry.file.name : '点击选择文件或拖拽文件到此处'}
+              key={slot.key}
+              className={`${styles.fileSlot} ${entry ? styles.fileSlotFilled : ''}`}
+              onClick={() => !entry && handleSlotClick(slot.key, slot.accept)}
+              onDrop={(e) => handleSlotDrop(e, slot.key)}
+              onDragOver={handleSlotDragOver}
+              title={entry ? entry.file.name : `点击或拖拽上传 ${slot.label} 文件`}
             >
               {entry ? (
                 <div className={styles.filePreview}>
@@ -137,42 +244,181 @@ export function InputPanel({ onGenerate, onAdjust, isProcessing, hasCode }: Inpu
                       <img src={entry.previewUrl} alt={entry.file.name} className={styles.thumb} />
                     )
                   ) : (
-                    <div className={styles.fileIcon}>
-                      {entry.file.name.endsWith('.obj') ? '◻' :
-                       entry.file.name.endsWith('.xlsx') || entry.file.name.endsWith('.xls') ? '📊' :
-                       entry.file.name.endsWith('.csv') ? '📄' :
-                       entry.file.name.endsWith('.txt') ? '📝' : '📎'}
-                    </div>
+                    <div className={styles.fileIcon}>{slot.icon}</div>
                   )}
-                  <div className={styles.fileName}>{entry.file.name.slice(0, isCompact ? 8 : 16)}</div>
+                  <div className={styles.fileName}>{entry.file.name.slice(0, 10)}</div>
                   <div
                     className={styles.removeBtn}
-                    onClick={(e) => { e.stopPropagation(); removeFile(idx); }}
+                    onClick={(e) => { e.stopPropagation(); removeSlotFile(slot.key); }}
                   >
                     ×
                   </div>
                 </div>
               ) : (
-                <PlusOutlined className={styles.plusIcon} />
+                <span className={styles.slotLabel}>{slot.label}</span>
               )}
             </div>
           );
         })}
       </div>
 
-      {/* 支持格式提示 */}
-      <div className={styles.formatHint}>
-        支持格式：{SUPPORTED_EXTENSIONS.join(' ')}
+      {/* 文件夹链接 */}
+      <input
+        ref={folderInputRef}
+        type="file"
+        // @ts-ignore webkitdirectory is widely supported
+        webkitdirectory=""
+        directory=""
+        multiple
+        style={{ display: 'none' }}
+        onChange={(e) => {
+          if (e.target.files && e.target.files.length > 0) {
+            folderToSlots(e.target.files);
+          }
+          e.target.value = '';
+        }}
+      />
+
+      <div className={styles.folderRow}>
+        <Tooltip title="链接本地 data 文件夹（批量导入）">
+          <Button
+            size="small"
+            icon={<FolderOpenOutlined />}
+            className={styles.folderBtn}
+            onClick={() => folderInputRef.current?.click()}
+          >
+            文件夹链接
+          </Button>
+        </Tooltip>
+        {hasAnyFile && (
+          <span className={styles.fileCount}>
+            {Object.values(slotFiles).filter(Boolean).length} 个文件已就绪
+          </span>
+        )}
       </div>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept={SUPPORTED_EXTENSIONS.join(',')}
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-      />
+      {/* 图生代码按钮 */}
+      {onImageToCode && (
+        <div className={styles.folderRow}>
+          <Tooltip title="上传图片，AI 根据图片生成代码">
+            <Button
+              size="small"
+              icon={<FileImageOutlined />}
+              className={styles.imgToCodeBtn}
+              onClick={() => setImgToCodeOpen(true)}
+            >
+              图生代码
+            </Button>
+          </Tooltip>
+        </div>
+      )}
+
+      {/* 图生代码弹窗 */}
+      <Modal
+        title="图生代码"
+        open={imgToCodeOpen}
+        onCancel={() => {
+          setImgToCodeOpen(false);
+          setImgToCodeImage(null);
+          if (imgToCodePreview) { URL.revokeObjectURL(imgToCodePreview); }
+          setImgToCodePreview(null);
+          setImgToCodeInstruction('');
+        }}
+        onOk={handleImgToCode}
+        okText="开始生成"
+        cancelText="取消"
+        width={650}
+        confirmLoading={isProcessing}
+        okButtonProps={{ disabled: !imgToCodeImage || !imgToCodeInstruction.trim() }}
+        destroyOnClose
+      >
+        <div className={styles.transformBody}>
+          <div className={styles.transformSection}>
+            <div className={styles.transformLabel}>上传参考图片</div>
+            <Dragger
+              accept="image/*"
+              showUploadList={false}
+              beforeUpload={handleImgDrop}
+              className={styles.imgDropZone}
+            >
+              {imgToCodePreview ? (
+                <img src={imgToCodePreview} alt="preview" className={styles.imgPreview} />
+              ) : (
+                <div className={styles.imgDropPlaceholder}>
+                  <InboxOutlined style={{ fontSize: 36, color: '#bfbfbf' }} />
+                  <p className={styles.imgDropHint}>点击或拖拽图片到此区域</p>
+                </div>
+              )}
+            </Dragger>
+            {imgToCodeImage && (
+              <div className={styles.imgFileName}>{imgToCodeImage.name}</div>
+            )}
+          </div>
+          <div className={styles.transformSection}>
+            <div className={styles.transformLabel}>生成指令（描述你想要的代码效果）</div>
+            <TextArea
+              value={imgToCodeInstruction}
+              onChange={(e) => setImgToCodeInstruction(e.target.value)}
+              placeholder="例如：生成这个图片的Three.js 3D版本、参考这个配色方案生成几何动画..."
+              rows={3}
+              className={styles.transformTextarea}
+            />
+          </div>
+        </div>
+      </Modal>
+
+      {/* 代码转化按钮 */}
+      {onCodeTransform && (
+        <div className={styles.folderRow}>
+          <Tooltip title="粘贴已有代码并进行AI转化">
+            <Button
+              size="small"
+              icon={<SwapOutlined />}
+              className={styles.transformBtn}
+              onClick={() => setTransformOpen(true)}
+            >
+              代码转化
+            </Button>
+          </Tooltip>
+        </div>
+      )}
+
+      {/* 代码转化弹窗 */}
+      <Modal
+        title="代码转化"
+        open={transformOpen}
+        onCancel={() => setTransformOpen(false)}
+        onOk={handleTransform}
+        okText="开始转化"
+        cancelText="取消"
+        width={700}
+        confirmLoading={isProcessing}
+        okButtonProps={{ disabled: !sourceCode.trim() || !transformInstruction.trim() }}
+        destroyOnClose
+      >
+        <div className={styles.transformBody}>
+          <div className={styles.transformSection}>
+            <div className={styles.transformLabel}>源代码（粘贴需要转化的代码）</div>
+            <TextArea
+              value={sourceCode}
+              onChange={(e) => setSourceCode(e.target.value)}
+              placeholder="在此粘贴需要转化的代码..."
+              rows={12}
+              className={styles.transformTextarea}
+            />
+          </div>
+          <div className={styles.transformSection}>
+            <div className={styles.transformLabel}>转化指令（描述你想要的修改）</div>
+            <TextArea
+              value={transformInstruction}
+              onChange={(e) => setTransformInstruction(e.target.value)}
+              placeholder="例如：把这段代码改成蓝色主题、添加粒子效果、转换成Three.js格式..."
+              rows={3}
+              className={styles.transformTextarea}
+            />
+          </div>
+        </div>
+      </Modal>
 
       {/* 生成行 */}
       <div className={styles.inputRow}>

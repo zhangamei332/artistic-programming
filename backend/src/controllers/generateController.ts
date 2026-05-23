@@ -1,17 +1,23 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { generateWithDeepSeek, fixWithDeepSeek } from '../services/ai/deepseek';
+import { generateWithDeepSeek, fixWithDeepSeek, imageToCodeWithDeepSeek } from '../services/ai/deepseek';
 
 const textGenerateSchema = z.object({
   prompt: z.string().min(1).max(2000),
   model: z.enum(['deepseek', 'gemini', 'gpt']).default('deepseek'),
-  language: z.enum(['auto', 'threejs', 'p5js']).default('auto'),
+  language: z.enum(['auto', 'threejs']).default('auto'),
 });
 
 const fixCodeSchema = z.object({
   code: z.string().min(1).max(50000),
   error: z.string().min(1).max(10000),
-  language: z.enum(['threejs', 'p5js']),
+  language: z.enum(['threejs']),
+});
+
+const imageToCodeSchema = z.object({
+  image: z.string().min(1).max(10000000),
+  instruction: z.string().min(1).max(2000),
+  model: z.enum(['deepseek', 'gemini', 'gpt']).default('deepseek'),
 });
 
 export async function generateTextController(
@@ -58,7 +64,38 @@ export async function fixCodeController(
 
     res.json({
       success: true,
-      data: { code: result.code },
+      data: {
+        code: result.code,
+        nodes: result.nodes,
+        edges: result.edges,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function imageToCodeController(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const body = imageToCodeSchema.parse(req.body);
+
+    const result = await imageToCodeWithDeepSeek({
+      imageDataUrl: body.image,
+      instruction: body.instruction,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        code: result.code,
+        language: result.language,
+        nodes: result.nodes,
+        edges: result.edges,
+      },
     });
   } catch (err) {
     next(err);

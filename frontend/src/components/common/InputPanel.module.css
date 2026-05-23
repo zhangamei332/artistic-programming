@@ -52,9 +52,12 @@
   border-color: #d9d9d9;
 }
 
-.plusIcon {
+.slotLabel {
   font-size: 18px;
+  font-weight: 700;
   color: #bfbfbf;
+  letter-spacing: 0.5px;
+  user-select: none;
 }
 
 /* 文件预览 */
@@ -120,6 +123,119 @@
   color: #bfbfbf;
   line-height: 1.3;
   user-select: none;
+}
+
+/* 文件夹链接按钮 */
+.folderRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 2px;
+}
+
+.folderBtn {
+  font-size: 11px;
+  padding: 0 10px;
+  height: 26px;
+  color: #8c8c8c;
+  border-color: #d9d9d9;
+}
+
+.folderBtn:hover {
+  color: #fa8c16;
+  border-color: #fa8c16;
+}
+
+.transformBtn {
+  font-size: 11px;
+  padding: 0 10px;
+  height: 26px;
+  color: #8c8c8c;
+  border-color: #d9d9d9;
+}
+
+.transformBtn:hover {
+  color: #722ed1;
+  border-color: #722ed1;
+}
+
+.imgToCodeBtn {
+  font-size: 11px;
+  padding: 0 10px;
+  height: 26px;
+  color: #8c8c8c;
+  border-color: #d9d9d9;
+}
+
+.imgToCodeBtn:hover {
+  color: #13c2c2;
+  border-color: #13c2c2;
+}
+
+/* 图生代码弹窗 */
+.imgDropZone {
+  min-height: 140px;
+}
+
+.imgDropZone :global(.ant-upload-drag) {
+  min-height: 140px;
+}
+
+.imgPreview {
+  max-width: 100%;
+  max-height: 200px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.imgDropPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.imgDropHint {
+  font-size: 13px;
+  color: #bfbfbf;
+  margin: 0;
+}
+
+.imgFileName {
+  font-size: 12px;
+  color: #52c41a;
+  margin-top: 4px;
+  text-align: center;
+}
+
+/* 代码转化弹窗 — reused by both modals */
+.transformBody {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.transformSection {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.transformLabel {
+  font-size: 13px;
+  font-weight: 500;
+  color: #333;
+}
+
+.transformTextarea {
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+}
+
+.fileCount {
+  font-size: 11px;
+  color: #52c41a;
+  white-space: nowrap;
 }
 
 /* 输入行 */

@@ -1,22 +1,31 @@
-import { useState, useCallback } from 'react';
-import { Slider, InputNumber, ColorPicker, Button, Modal, Typography, Tag } from 'antd';
+import { useState, useCallback, useMemo } from 'react';
+import { Slider, InputNumber, ColorPicker, Button, Modal, Typography, Tag, Select } from 'antd';
 import {
   SettingOutlined,
   DownOutlined,
   UpOutlined,
   KeyOutlined,
   CheckOutlined,
+  PlusOutlined,
+  LinkOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons';
 import { categoryFromNodeType, categoryLabels, tdNodeTypes } from '../nodes/TDNodes';
+import { ANIMATION_MOTION_TYPES } from '../../utils/nodeSemantics';
 import type { NodeData } from '../nodes/NodeCanvas';
+import type { EdgeData } from '../nodes/NodeCanvas';
 import styles from './ParamPanel.module.css';
 
 const { Text } = Typography;
 
 interface ParamPanelProps {
   selectedNode: NodeData | null;
+  allNodes?: NodeData[];
+  allEdges?: EdgeData[];
   onParamChange?: (nodeId: string, key: string, value: unknown) => void;
   onApply?: () => void;
+  onConnectNodes?: (sourceId: string, targetId: string) => void;
+  onRemoveConnection?: (sourceId: string, targetId: string) => void;
   adjustExplanation?: string | null;
 }
 
@@ -30,11 +39,14 @@ const catHeaderClasses: Record<string, string> = {
   drawing: styles.catDrawing,
 };
 
-export function ParamPanel({ selectedNode, onParamChange, onApply, adjustExplanation }: ParamPanelProps) {
+export function ParamPanel({ selectedNode, allNodes, allEdges, onParamChange, onApply, onConnectNodes, onRemoveConnection, adjustExplanation }: ParamPanelProps) {
   const [expanded, setExpanded] = useState(true);
   const [keyModalOpen, setKeyModalOpen] = useState(false);
   const [keyRecording, setKeyRecording] = useState('');
   const [recordingParam, setRecordingParam] = useState('');
+  const [customKeyInput, setCustomKeyInput] = useState('');
+  const [customKeyModalOpen, setCustomKeyModalOpen] = useState(false);
+  const [connectTargetId, setConnectTargetId] = useState<string | undefined>(undefined);
 
   const handleParamChange = useCallback(
     (key: string, value: unknown) => {
@@ -52,6 +64,105 @@ export function ParamPanel({ selectedNode, onParamChange, onApply, adjustExplana
       setKeyModalOpen(true);
     },
     [],
+  );
+
+  // --- Keyboard key grid helpers ---
+  const selectedKeys: string[] = useMemo(() => {
+    if (!selectedNode || selectedNode.type !== 'keyboard') return [];
+    const keys = selectedNode.params?.keys;
+    if (Array.isArray(keys)) return keys as string[];
+    // backward compat: single key string
+    const singleKey = selectedNode.params?.key;
+    if (typeof singleKey === 'string' && singleKey) return [singleKey];
+    return [];
+  }, [selectedNode]);
+
+  const toggleKey = useCallback(
+    (key: string) => {
+      const current = selectedKeys;
+      const next = current.includes(key)
+        ? current.filter((k) => k !== key)
+        : [...current, key];
+      handleParamChange('keys', next);
+    },
+    [selectedKeys, handleParamChange],
+  );
+
+  const addCustomKey = useCallback(() => {
+    const trimmed = customKeyInput.trim();
+    if (!trimmed) return;
+    toggleKey(trimmed);
+    setCustomKeyInput('');
+    setCustomKeyModalOpen(false);
+  }, [customKeyInput, toggleKey]);
+
+  const removeCustomKey = useCallback(
+    (key: string) => {
+      toggleKey(key);
+    },
+    [toggleKey],
+  );
+
+  // --- Connection helpers ---
+  const existingConnections = useMemo(() => {
+    if (!selectedNode || !allEdges) return [];
+    return allEdges.filter((e) => e.source === selectedNode.id).map((e) => e.target);
+  }, [selectedNode, allEdges]);
+
+  const connectableNodes = useMemo(() => {
+    if (!allNodes || !selectedNode) return [];
+    // Animation nodes, mesh, particles, etc. — anything that can be controlled
+    return allNodes.filter(
+      (n) =>
+        n.id !== selectedNode.id &&
+        !existingConnections.includes(n.id) &&
+        ['animation', 'mesh', 'particles', 'transform', 'material', 'light', 'camera'].some(
+          (t) => n.type === t || n.type.includes('Light'),
+        ),
+    );
+  }, [allNodes, selectedNode, existingConnections]);
+
+  const handleAddConnection = useCallback(() => {
+    if (!selectedNode || !connectTargetId || !onConnectNodes) return;
+    onConnectNodes(selectedNode.id, connectTargetId);
+    setConnectTargetId(undefined);
+  }, [selectedNode, connectTargetId, onConnectNodes]);
+
+  // --- Accept drag from interaction node on canvas ---
+  const [dropHighlight, setDropHighlight] = useState(false);
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer.types.includes('application/interaction-node')) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'link';
+      setDropHighlight(true);
+    }
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDropHighlight(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      setDropHighlight(false);
+      const raw = e.dataTransfer.getData('application/interaction-node');
+      if (!raw) return;
+      try {
+        const { nodeId, nodeType, label }: { nodeId: string; nodeType: string; label: string } = JSON.parse(raw);
+        // If a target node is currently selected (e.g. animation), connect to it
+        if (selectedNode && onConnectNodes && selectedNode.id !== nodeId) {
+          const isValidTarget = ['animation', 'mesh', 'particles', 'transform', 'material'].some(
+            (t) => selectedNode.type === t || selectedNode.type.includes('Light'),
+          );
+          if (isValidTarget) {
+            onConnectNodes(nodeId, selectedNode.id);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    },
+    [selectedNode, onConnectNodes],
   );
 
   if (!selectedNode) {
@@ -72,12 +183,18 @@ export function ParamPanel({ selectedNode, onParamChange, onApply, adjustExplana
   const params = selectedNode.params || {};
 
   const paramEntries = Object.entries(params).filter(
-    ([k]) => k !== 'interaction',
+    ([k]) => k !== 'interaction' && k !== 'keys' && k !== 'key',
   );
   const hasInteraction = 'interaction' in params;
+  const isKeyboardNode = selectedNode.type === 'keyboard';
 
   return (
-    <div className={styles.panel}>
+    <div
+      className={`${styles.panel} ${dropHighlight ? styles.panelDropActive : ''}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <div className={styles.collapsed} onClick={() => setExpanded(!expanded)}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <SettingOutlined style={{ fontSize: 12 }} />
@@ -99,6 +216,76 @@ export function ParamPanel({ selectedNode, onParamChange, onApply, adjustExplana
               {typeLabel}
             </Tag>
           </div>
+
+          {/* 动画节点：运动方式选择器 */}
+          {selectedNode.type === 'animation' && (
+            <div className={styles.paramGroup}>
+              <div className={styles.paramLabel}>运动方式</div>
+              <Select
+                value={(params.motionType as string) || 'rotate'}
+                onChange={(v) => handleParamChange('motionType', v)}
+                style={{ width: '100%' }}
+                size="small"
+                options={Object.entries(ANIMATION_MOTION_TYPES).map(([key, label]) => ({
+                  value: key,
+                  label,
+                }))}
+              />
+            </div>
+          )}
+
+          {/* 键盘交互节点：按键网格选择器 */}
+          {isKeyboardNode && (
+            <div className={styles.keyGridSection}>
+              <div className={styles.keyGridLabel}>按键选择（点击切换）</div>
+              <div className={styles.keyGrid}>
+                <div className={styles.keyRow}>
+                  {['1', '2', '3', '4', '5'].map((k) => (
+                    <div
+                      key={k}
+                      className={`${styles.keyCircle} ${selectedKeys.includes(k) ? styles.keyCircleActive : ''}`}
+                      onClick={() => toggleKey(k)}
+                    >
+                      {k}
+                    </div>
+                  ))}
+                </div>
+                <div className={styles.keyRow}>
+                  {['6', '7', '8', '9', '0'].map((k) => (
+                    <div
+                      key={k}
+                      className={`${styles.keyCircle} ${selectedKeys.includes(k) ? styles.keyCircleActive : ''}`}
+                      onClick={() => toggleKey(k)}
+                    >
+                      {k}
+                    </div>
+                  ))}
+                </div>
+                {selectedKeys.filter((k) => !/^[0-9]$/.test(k)).length > 0 && (
+                  <div className={styles.customKeysRow}>
+                    {selectedKeys
+                      .filter((k) => !/^[0-9]$/.test(k))
+                      .map((k) => (
+                        <div
+                          key={k}
+                          className={styles.customKeyCircle}
+                          onClick={() => removeCustomKey(k)}
+                          title={`点击删除 ${k}`}
+                        >
+                          {k}
+                        </div>
+                      ))}
+                  </div>
+                )}
+                <div
+                  className={`${styles.keyCircle} ${styles.keyCircleAdd}`}
+                  onClick={() => setCustomKeyModalOpen(true)}
+                >
+                  +
+                </div>
+              </div>
+            </div>
+          )}
 
           {paramEntries.map(([key, value]) => {
             if (typeof value === 'number') {
@@ -212,7 +399,63 @@ export function ParamPanel({ selectedNode, onParamChange, onApply, adjustExplana
             </div>
           )}
 
-          {paramEntries.length === 0 && !hasInteraction && (
+          {/* 交互节点：连接目标 */}
+          {['keyboard', 'mouse', 'interaction', 'gesture', 'camera_interaction', 'audioRhythm', 'mp4Recognition', 'faceRecognition', 'hardware'].includes(selectedNode.type) && (
+            <div className={styles.connectSection}>
+              <div className={styles.connectLabel}>
+                <LinkOutlined /> 连接目标
+              </div>
+              {allEdges && allNodes && existingConnections.map((targetId) => {
+                const targetNode = allNodes.find((n) => n.id === targetId);
+                return (
+                  <div key={targetId} className={styles.connectRow}>
+                    <span className={styles.connectTargetName}>
+                      {targetNode ? targetNode.label : targetId}
+                    </span>
+                    {onRemoveConnection && (
+                      <span
+                        className={styles.connectRemove}
+                        onClick={() => onRemoveConnection(selectedNode.id, targetId)}
+                      >
+                        <DeleteOutlined />
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+              {connectableNodes.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+                  <Select
+                    size="small"
+                    placeholder="选择目标节点..."
+                    value={connectTargetId}
+                    onChange={setConnectTargetId}
+                    style={{ flex: 1 }}
+                    options={connectableNodes.map((n) => ({
+                      value: n.id,
+                      label: `${n.label} (${tdNodeTypes[n.type] || n.type})`,
+                    }))}
+                  />
+                  <Button
+                    size="small"
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={handleAddConnection}
+                    disabled={!connectTargetId}
+                  >
+                    连接
+                  </Button>
+                </div>
+              )}
+              {connectableNodes.length === 0 && existingConnections.length === 0 && (
+                <Text type="secondary" style={{ fontSize: 11 }}>
+                  画布中暂无可用目标节点。请先从工具箱添加动画或网格节点。
+                </Text>
+              )}
+            </div>
+          )}
+
+          {paramEntries.length === 0 && !hasInteraction && !isKeyboardNode && (
             <div className={styles.empty}>此节点无可调参数</div>
           )}
 
@@ -225,7 +468,7 @@ export function ParamPanel({ selectedNode, onParamChange, onApply, adjustExplana
                 onClick={onApply}
                 block
               >
-                应用参数并刷新预览
+                保存调整局部参数
               </Button>
             </div>
           )}
@@ -276,6 +519,44 @@ export function ParamPanel({ selectedNode, onParamChange, onApply, adjustExplana
             readOnly
             placeholder="在此按下按键..."
           />
+        </div>
+      </Modal>
+
+      <Modal
+        title="添加自定义按键"
+        open={customKeyModalOpen}
+        onCancel={() => setCustomKeyModalOpen(false)}
+        onOk={addCustomKey}
+        okText="添加"
+        cancelText="取消"
+      >
+        <div style={{ padding: '24px', textAlign: 'center' }}>
+          <Text>请输入要添加的按键字符（如 a、Space、/、*、- 等）</Text>
+          <input
+            className={styles.addKeyModalInput}
+            value={customKeyInput}
+            onChange={(e) => setCustomKeyInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addCustomKey();
+              }
+            }}
+            placeholder="输入按键字符..."
+            autoFocus
+          />
+          <div style={{ marginTop: 12, display: 'flex', gap: 6, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {['A', 'B', 'C', 'D', 'Space', 'Enter', '/', '*', '-', '.', 'Escape'].map((k) => (
+              <Tag
+                key={k}
+                style={{ cursor: 'pointer' }}
+                color={customKeyInput === k ? 'blue' : 'default'}
+                onClick={() => setCustomKeyInput(k)}
+              >
+                {k}
+              </Tag>
+            ))}
+          </div>
         </div>
       </Modal>
     </div>

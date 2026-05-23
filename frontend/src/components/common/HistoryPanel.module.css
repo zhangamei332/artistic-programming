@@ -46,6 +46,16 @@
   background: #f5f7fa;
 }
 
+.itemActive {
+  background: #fff7e6 !important;
+  border-left: 3px solid #fa8c16;
+  border-bottom: 1px solid #ffd591;
+}
+
+.itemActive:hover {
+  background: #ffe7ba !important;
+}
+
 .itemTop {
   display: flex;
   align-items: center;
@@ -74,6 +84,18 @@
   color: #888;
 }
 
+.diffBadge {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: #e6fffb;
+  color: #08979C;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .deleteBtn {
   margin-left: auto;
   color: #ccc;
@@ -85,4 +107,81 @@
 
 .deleteBtn:hover {
   color: #ff4d4f;
+}
+
+/* 子级记录样式 — 紧凑型 */
+.itemChild {
+  padding: 4px 8px 4px 28px;
+  background: #fafafa;
+  border-left: 2px solid #e8e8e8;
+  position: relative;
+  font-size: 11px;
+}
+
+.itemChild .itemTop {
+  gap: 4px;
+}
+
+.itemChild .itemPrompt {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.itemChild .itemMeta {
+  margin-top: 1px;
+}
+
+.itemChild .badge {
+  font-size: 9px;
+  padding: 0 4px;
+}
+
+.itemChild .deleteBtn {
+  font-size: 9px;
+  height: 14px;
+}
+
+.itemChild:hover {
+  background: #f0f0f0;
+}
+
+.itemChild.itemActive {
+  background: #fff7e6 !important;
+  border-left: 3px solid #fa8c16;
+}
+
+/* 拖拽手柄 */
+.dragHandle {
+  cursor: grab;
+  color: #ccc;
+  margin-right: 4px;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+/* 拖拽目标高亮 */
+.dropTarget {
+  outline: 2px dashed #1890ff !important;
+  outline-offset: -2px;
+  background: #e6f7ff !important;
+}
+
+/* 拖拽中的半透明效果 */
+.dragging {
+  opacity: 0.4;
+}
+
+.childIndicator {
+  position: absolute;
+  left: 10px;
+  top: 12px;
+  color: #bbb;
+}
+
+.itemContent {
+  flex: 1;
 }

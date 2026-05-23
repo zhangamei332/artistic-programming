@@ -107,3 +107,40 @@
   border: 1.5px solid #EB2F96;
 }
 .nodeDrawing .header { color: #C41D7F; }
+
+/* 文件资源节点 — 青色/卡片风格 */
+.nodeFile {
+  background: linear-gradient(135deg, #e6fffb, #b5f5ec);
+  border: 1.5px solid #13C2C2;
+  border-style: dashed;
+}
+.nodeFile .header { color: #006D75; }
+
+/* 交互节点的拖拽把手 — 用于拖到参数面板创建连接 */
+.dragHandle {
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ff7a45;
+  color: #fff;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  box-shadow: 0 1px 4px rgba(250, 84, 28, 0.4);
+  z-index: 10;
+  user-select: none;
+  transition: transform 0.15s;
+}
+
+.dragHandle:hover {
+  transform: scale(1.2);
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}

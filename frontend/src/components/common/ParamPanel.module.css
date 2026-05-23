@@ -156,3 +156,194 @@
   border: 1px solid #b7eb8f;
   border-radius: 4px;
 }
+
+/* ---- Keyboard Key Grid ---- */
+.keyGridSection {
+  margin-bottom: var(--spacing-sm);
+}
+
+.keyGridLabel {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.keyGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.keyRow {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.keyCircle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid #d9d9d9;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.15s;
+  color: #595959;
+}
+
+.keyCircle:hover {
+  border-color: #1890ff;
+  color: #1890ff;
+  background: #e6f7ff;
+}
+
+.keyCircleActive {
+  border-color: #1890ff;
+  background: #1890ff;
+  color: #fff;
+}
+
+.keyCircleActive:hover {
+  background: #40a9ff;
+  border-color: #40a9ff;
+  color: #fff;
+}
+
+.keyCircleAdd {
+  border-color: #52c41a;
+  color: #52c41a;
+  font-size: 20px;
+  font-weight: 400;
+}
+
+.keyCircleAdd:hover {
+  background: #f6ffed;
+  border-color: #73d13d;
+  color: #73d13d;
+}
+
+.customKeysRow {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.customKeyCircle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1.5px solid #d9d9d9;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  cursor: pointer;
+  transition: all 0.15s;
+  position: relative;
+}
+
+.customKeyCircle:hover {
+  border-color: #ff4d4f;
+  background: #fff1f0;
+}
+
+.customKeyCircle:hover::after {
+  content: '×';
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ff4d4f;
+  color: #fff;
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.addKeyModalInput {
+  width: 100%;
+  margin-top: 16px;
+  padding: 8px 12px;
+  font-size: 18px;
+  text-align: center;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-family: 'Courier New', monospace;
+}
+
+/* ---- Connection target section ---- */
+.connectSection {
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--color-border);
+}
+
+.connectLabel {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  margin-bottom: 6px;
+  font-weight: 500;
+}
+
+.connectRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  background: #fafafa;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-size: 12px;
+}
+
+.connectKeyBadge {
+  display: inline-block;
+  padding: 1px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Courier New', monospace;
+  background: #1890ff;
+  color: #fff;
+  border-radius: 3px;
+}
+
+.connectTargetName {
+  color: var(--color-text-primary);
+  flex: 1;
+}
+
+.connectRemove {
+  cursor: pointer;
+  color: #999;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.connectRemove:hover {
+  color: #ff4d4f;
+}
+
+/* Drop highlight when dragging interaction node onto panel */
+.panelDropActive {
+  outline: 2px dashed #fa541c;
+  outline-offset: -2px;
+  background: #fff7e6 !important;
+}

@@ -7,6 +7,7 @@ import {
   SettingOutlined,
   ThunderboltOutlined,
   ReloadOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { NodeCanvas } from '../nodes/NodeCanvas';
 import { NodeToolbox } from '../nodes/NodeToolbox';
@@ -90,24 +91,32 @@ export function AppLayout() {
     onVerifierSuccess,
     updateNodeParams,
     regenerateFromParams,
+    saveNodeParamsOnly,
     adjustCode,
     refreshPreview,
     restoreHistory,
     deleteHistory,
+    moveToParent,
+    activeBaseHistoryId,
     currentAttempt,
     maxAttempts,
+    syncFromCanvas,
+    addEdge,
+    removeEdge,
+    generateFromGraph,
+    transformCode,
+    imageToCode,
   } = useAutoFix();
 
   // Resizable panel widths — each handle controls the panel to its LEFT
-  const [sidebarWidth, onSidebarResize, sidebarResizing] = useResizeHandle(260, 180, 400);
+  const [sidebarWidth, onSidebarResize, sidebarResizing] = useResizeHandle(340, 220, 480);
   const [canvasWidth, onCanvasResize, canvasResizing] = useResizeHandle(380, 200, 700);
-  const [paramWidth, onParamResize, paramResizing] = useResizeHandle(290, 200, 500);
 
   const handleGenerate = useCallback(
-    (prompt: string, model: string) => {
+    (prompt: string, model: string, files: File[]) => {
       setViewMode('preview');
       setSelectedNode(null);
-      startAutoFix(prompt, model);
+      startAutoFix(prompt, model, files);
     },
     [startAutoFix],
   );
@@ -118,6 +127,24 @@ export function AppLayout() {
       adjustCode(prompt);
     },
     [adjustCode],
+  );
+
+  const handleCodeTransform = useCallback(
+    (sourceCode: string, instruction: string) => {
+      setViewMode('preview');
+      setSelectedNode(null);
+      transformCode(sourceCode, instruction);
+    },
+    [transformCode],
+  );
+
+  const handleImageToCode = useCallback(
+    (imageFile: File, instruction: string) => {
+      setViewMode('preview');
+      setSelectedNode(null);
+      imageToCode(imageFile, instruction);
+    },
+    [imageToCode],
   );
 
   const handleNodeSelect = useCallback((node: NodeData | null) => {
@@ -135,7 +162,37 @@ export function AppLayout() {
     [updateNodeParams],
   );
 
-  const handleApplyParams = useCallback(() => {
+  const handleGraphChange = useCallback(
+    (nodes: NodeData[], edges: EdgeData[]) => {
+      syncFromCanvas(nodes, edges);
+    },
+    [syncFromCanvas],
+  );
+
+  const handleConnectNodes = useCallback(
+    (sourceId: string, targetId: string) => {
+      addEdge(sourceId, targetId);
+    },
+    [addEdge],
+  );
+
+  const handleRemoveConnection = useCallback(
+    (sourceId: string, targetId: string) => {
+      removeEdge(sourceId, targetId);
+    },
+    [removeEdge],
+  );
+
+  const handleGenerateFromGraph = useCallback(() => {
+    setViewMode('preview');
+    generateFromGraph();
+  }, [generateFromGraph]);
+
+  const handleSaveLocalParams = useCallback(() => {
+    saveNodeParamsOnly();
+  }, [saveNodeParamsOnly]);
+
+  const handleApplyAllParams = useCallback(() => {
     regenerateFromParams();
     setViewMode('preview');
   }, [regenerateFromParams]);
@@ -149,6 +206,26 @@ export function AppLayout() {
     [restoreHistory],
   );
 
+  // 拖拽历史记录形成父子级时，触发代码合并重新生成
+  const handleMoveToParent = useCallback(
+    (entryId: string, newParentId: string | null) => {
+      moveToParent(entryId, newParentId);
+
+      if (newParentId) {
+        const parentEntry = history.find((e) => e.id === newParentId);
+        const childEntry = history.find((e) => e.id === entryId);
+        if (parentEntry && childEntry) {
+          // 以父级代码为基础，子级提示词作为调整指令，重新生成代码
+          restoreHistory(parentEntry);
+          adjustCode(childEntry.prompt);
+          setViewMode('preview');
+          setSelectedNode(null);
+        }
+      }
+    },
+    [history, moveToParent, restoreHistory, adjustCode],
+  );
+
   const code = finalCode || '';
   const nodes = finalNodes || [];
   const edges = finalEdges || [];
@@ -159,7 +236,7 @@ export function AppLayout() {
     fixing: `正在修复第 ${currentAttempt} 个错误 (最多 ${maxAttempts} 次)...`,
   };
 
-  const isResizing = sidebarResizing || canvasResizing || paramResizing;
+  const isResizing = sidebarResizing || canvasResizing;
 
   return (
     <Layout className={`${styles.layout} ${isResizing ? styles.resizing : ''}`}>
@@ -193,6 +270,8 @@ export function AppLayout() {
           <InputPanel
             onGenerate={handleGenerate}
             onAdjust={handleAdjust}
+            onCodeTransform={handleCodeTransform}
+            onImageToCode={handleImageToCode}
             isProcessing={isProcessing}
             hasCode={!!code}
           />
@@ -200,6 +279,8 @@ export function AppLayout() {
             history={history}
             onRestore={handleRestoreHistory}
             onDelete={deleteHistory}
+            onMoveToParent={handleMoveToParent}
+            activeBaseId={activeBaseHistoryId}
           />
         </div>
 
@@ -209,9 +290,6 @@ export function AppLayout() {
         {/* 节点工具箱 */}
         <NodeToolbox />
 
-        {/* 手柄 B: 工具箱 ↔ 画布 — 控制画布宽度（从左边） */}
-        <div className={styles.resizeHandle} onMouseDown={onCanvasResize} />
-
         {/* 节点画布 */}
         <div className={styles.centerPanel} style={{ width: canvasWidth }}>
           <NodeCanvas
@@ -219,31 +297,46 @@ export function AppLayout() {
             nodes={nodes}
             edges={edges}
             onNodeSelect={handleNodeSelect}
+            onGraphChange={handleGraphChange}
+            onGenerateFromGraph={handleGenerateFromGraph}
           />
         </div>
 
-        {/* 手柄 C: 画布 ↔ 参数抽屉 — 控制画布宽度（从右边） */}
+        {/* 手柄 B: 画布 ↔ 参数抽屉 — 控制画布宽度 */}
         <div className={styles.resizeHandle} onMouseDown={onCanvasResize} />
 
         {/* 参数抽屉 — 选中节点时滑出 */}
         <div
           className={`${styles.paramDrawer} ${selectedNode ? styles.paramDrawerOpen : ''}`}
-          style={{ width: selectedNode ? paramWidth : 0 }}
+          style={{ width: selectedNode ? 290 : 0 }}
         >
           <ParamPanel
             selectedNode={selectedNode}
+            allNodes={nodes}
+            allEdges={edges}
             onParamChange={handleParamChange}
-            onApply={handleApplyParams}
+            onApply={handleSaveLocalParams}
+            onConnectNodes={handleConnectNodes}
+            onRemoveConnection={handleRemoveConnection}
             adjustExplanation={adjustExplanation}
           />
         </div>
 
-        {/* 手柄 D: 参数抽屉 ↔ 预览 — 控制参数抽屉宽度 */}
-        <div className={styles.resizeHandle} onMouseDown={onParamResize} />
-
         {/* 右侧：预览/代码 */}
         <div className={styles.rightPanel}>
           <div className={styles.rightToolbar}>
+            <Tooltip title="应用所有节点的参数修改并刷新预览">
+              <Button
+                type="primary"
+                size="small"
+                icon={<CheckCircleOutlined />}
+                onClick={handleApplyAllParams}
+                disabled={!code || isProcessing}
+              >
+                应用全部参数并预览
+              </Button>
+            </Tooltip>
+            <div style={{ flex: 1 }} />
             <Button
               type={viewMode === 'preview' ? 'primary' : 'default'}
               size="small"
@@ -260,7 +353,6 @@ export function AppLayout() {
             >
               代码
             </Button>
-            <div style={{ flex: 1 }} />
             <Tooltip title="刷新预览">
               <Button
                 size="small"

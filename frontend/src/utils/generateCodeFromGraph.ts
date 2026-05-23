@@ -1,44 +1,35 @@
 import type { NodeData } from '../components/nodes/NodeCanvas';
 import type { EdgeData } from '../components/nodes/NodeCanvas';
-import { tdNodeTypes } from '../components/nodes/TDNodes';
+import { buildGraphText } from './nodeSemantics';
+import type { GraphTextOutput } from './nodeSemantics';
 
 interface GraphToCodeParams {
   nodes: NodeData[];
   edges: EdgeData[];
   originalCode: string;
-  language: 'threejs' | 'p5js';
+  language: 'threejs';
 }
 
+/**
+ * 从节点图构建结构化的文本描述。
+ * 使用 nodeSemantics 引擎：每个节点 → 局部文本指令，每条连线 → 逻辑关系文本，
+ * 按语义分段组织（场景结构/几何体/光照/效果/交互/动画/数据流）。
+ */
 export function buildGraphDescription(params: GraphToCodeParams): string {
-  const { nodes, edges, originalCode } = params;
+  const { nodes, edges, language } = params;
 
-  const nodeLines = nodes.map((n) => {
-    const typeName = tdNodeTypes[n.type] || n.type;
-    const paramStr = Object.entries(n.params)
-      .map(([k, v]) => `    ${k}=${v}`)
-      .join('\n');
-    return `节点: ${n.id} [${typeName}] "${n.label}"
-参数:
-${paramStr || '    (无)'}`;
+  const result: GraphTextOutput = buildGraphText({
+    nodes: nodes.map((n) => ({ id: n.id, type: n.type, label: n.label, params: n.params })),
+    edges: edges.map((e) => ({ source: e.source, target: e.target })),
+    language,
   });
 
-  const edgeLines = edges.map((e) => {
-    const src = nodes.find((n) => n.id === e.source);
-    const tgt = nodes.find((n) => n.id === e.target);
-    return `${src?.label || e.source} -> ${tgt?.label || e.target}`;
-  });
-
-  return `根据以下节点参数更新代码：
-
-节点与参数:
-${nodeLines.join('\n\n')}
-
-连线关系:
-${edgeLines.join('\n') || '(无连线)'}
-
-请仅修改上面列出的参数值，保持代码其他部分不变。确保所有 @node:、@param:、@color:、@interaction:、@connect: 标记完整保留。`;
+  return result.fullText;
 }
 
+/**
+ * 从节点图重新生成代码 — 将图结构文本发给AI修复端点。
+ */
 export async function regenerateCode(
   graphParams: GraphToCodeParams,
 ): Promise<string | null> {
