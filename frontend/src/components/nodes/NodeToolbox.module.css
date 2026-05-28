@@ -1,7 +1,6 @@
 .toolbox {
-  width: 44px;
-  background: var(--color-bg-gray);
-  border-right: 1px solid var(--color-border);
+  width: 12px;
+  background: transparent;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -11,7 +10,7 @@
 }
 
 .toolbox.expanded {
-  width: 180px;
+  width: 12px;
 }
 
 .toggleBtn {
@@ -21,19 +20,18 @@
   height: 32px;
   cursor: pointer;
   font-size: 14px;
-  color: var(--color-text-secondary);
-  border-bottom: 1px solid var(--color-border);
+  color: rgba(255, 255, 255, 0.3);
   user-select: none;
   flex-shrink: 0;
 }
 
 .toggleBtn:hover {
-  background: #e8ecf1;
-  color: var(--color-primary);
+  background: transparent;
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .categoryHeader {
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 6px 4px;
@@ -68,7 +66,7 @@
 }
 
 .itemList {
-  display: flex;
+  display: none;
   flex-direction: column;
   padding: 2px 0;
 }

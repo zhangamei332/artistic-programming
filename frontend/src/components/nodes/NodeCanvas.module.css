@@ -2,6 +2,10 @@
   width: 100%;
   height: 100%;
   position: relative;
+  background:
+    radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.08) 1px, transparent 0),
+    #101112;
+  background-size: 18px 18px;
 }
 
 .generateBtn {
@@ -39,4 +43,660 @@
   pointer-events: none;
   border: 1px dashed #1890ff;
   background: rgba(24, 144, 255, 0.1);
+}
+
+.previewNode {
+  width: 370px;
+  height: 236px;
+  padding: 8px;
+  border: 1px solid rgba(120, 128, 138, 0.55);
+  border-radius: 6px;
+  background: #262626;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.35);
+  color: #d6d8dc;
+  overflow: hidden;
+}
+
+.previewNodeActive {
+  border-color: #26d26d;
+  box-shadow:
+    0 0 0 2px rgba(38, 210, 109, 0.4),
+    0 16px 42px rgba(0, 0, 0, 0.45);
+}
+
+.previewTitle {
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: #aeb3ba;
+}
+
+.previewTitle span:first-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previewTitle span:last-child {
+  flex-shrink: 0;
+  color: #68e0ff;
+  font-size: 10px;
+}
+
+.previewViewport {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 22px);
+  border: 1px solid #575e68;
+  background: #151515;
+  overflow: hidden;
+}
+
+.previewToolbar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(32, 32, 32, 0.86);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.34);
+}
+
+.previewToolbar button {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #f2f2f2;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.previewToolbar button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.previewHitArea {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  cursor: zoom-in;
+  background: transparent;
+}
+
+.contextMenu {
+  position: absolute;
+  z-index: 46;
+  width: 230px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 18px;
+  background: #252525;
+  color: #f4f4f4;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.46);
+}
+
+.contextMenu button {
+  width: 100%;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #f4f4f4;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.contextMenu button:hover:not(:disabled),
+.contextPrimary {
+  background: #3b3b3b !important;
+}
+
+.contextMenu button:disabled {
+  color: #666;
+  cursor: default;
+}
+
+.contextMenu kbd {
+  color: #8c8c8c;
+  font: inherit;
+  font-weight: 500;
+}
+
+.contextDivider {
+  height: 1px;
+  margin: 6px 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.addMenu {
+  position: absolute;
+  z-index: 40;
+  width: 218px;
+  padding: 18px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: #252525;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+  transform-origin: 24px 24px;
+  animation: menuIn 0.18s ease-out;
+}
+
+@keyframes menuIn {
+  from {
+    opacity: 0;
+    transform: rotate(-4deg) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(0) scale(1);
+  }
+}
+
+.addMenuTitle {
+  margin: 4px 8px 14px;
+  color: #aaa;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.addMenu button {
+  width: 100%;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #f2f2f2;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.addMenu button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.addMenu button span {
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: #3b3b3b;
+  color: #fff;
+  font-size: 16px;
+}
+
+.addMenu small {
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: #464646;
+  color: #bcbcbc;
+  font-size: 10px;
+}
+
+.imageSourceNode {
+  position: relative;
+  width: 460px;
+  height: 330px;
+  border: 1px solid #3f3f3f;
+  border-radius: 8px;
+  background: #050505;
+  color: #aaa;
+  overflow: visible;
+  cursor: move;
+}
+
+:global(.react-flow__node-imageSource.selected) .imageSourceNode {
+  box-shadow: none;
+}
+
+.imageNodeTitle {
+  position: absolute;
+  top: -26px;
+  left: 0;
+  color: #8d8d8d;
+  font-size: 14px;
+}
+
+.uploadPill {
+  position: absolute;
+  top: -42px;
+  left: 50%;
+  z-index: 3;
+  height: 30px;
+  padding: 0 14px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: #2c2c2c;
+  color: #fff;
+  font-weight: 700;
+  transform: translateX(-50%);
+  cursor: pointer;
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.imagePreview {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.imagePlaceholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  border: 2px solid #8d8d8d;
+  border-radius: 8px;
+  background: #262626;
+}
+
+.imageGlyph {
+  color: #646464;
+  font-size: 54px;
+}
+
+.imageHint {
+  color: #a8a8a8;
+  font-size: 16px;
+}
+
+.imageToCodeNode {
+  position: relative;
+  width: 620px;
+  height: 230px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #272727;
+  color: #f4f4f4;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.35);
+  cursor: move;
+}
+
+.nodePromptTools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 42px;
+}
+
+.nodePromptTools button {
+  width: 54px;
+  height: 44px;
+  border: 1px solid #555;
+  border-radius: 8px;
+  background: #2d2d2d;
+  color: #bdbdbd;
+  cursor: pointer;
+}
+
+.linkedThumb {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.imagePrompt {
+  width: 100%;
+  height: 88px;
+  margin-top: 14px;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: #f4f4f4;
+  font-size: 16px;
+}
+
+.imagePrompt::placeholder {
+  color: #9d9d9d;
+}
+
+.nodeBottomBar {
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.nodeBottomBar button {
+  height: 30px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.nodeBottomBar button:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.submitNodeBtn {
+  width: 34px;
+  margin-left: auto;
+  background: #a8a8a8 !important;
+  color: #171717 !important;
+  font-size: 20px !important;
+}
+
+.modelMenu,
+.resolutionMenu {
+  position: absolute;
+  left: 14px;
+  bottom: 54px;
+  z-index: 20;
+  width: 360px;
+  padding: 12px;
+  border: 1px solid #4f4f4f;
+  border-radius: 14px;
+  background: #232323;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.modelMenu button {
+  width: 100%;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #f3f3f3;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.modelMenu button:hover,
+.menuSelected {
+  background: #4b4b4b !important;
+}
+
+.modelMenu small {
+  color: #aaa;
+  font-weight: 400;
+}
+
+.resolutionMenu {
+  left: 150px;
+  width: 390px;
+}
+
+.menuCaption {
+  margin: 8px 6px;
+  color: #aaa;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.segmentRow,
+.ratioGrid {
+  display: grid;
+  gap: 8px;
+}
+
+.segmentRow {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.ratioGrid {
+  grid-template-columns: repeat(5, 1fr);
+}
+
+.segmentRow button,
+.ratioGrid button {
+  height: 42px;
+  border: 1px solid #4f4f4f;
+  border-radius: 8px;
+  background: #252525;
+  color: #bfbfbf;
+  cursor: pointer;
+}
+
+.largeHandle {
+  width: 18px !important;
+  height: 18px !important;
+  border: 2px solid #d6d6d6 !important;
+  background: #2a2a2a !important;
+}
+
+.expandNodeBtn {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 6;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #aeb3ba;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.expandNodeBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.referenceMenu {
+  position: absolute;
+  z-index: 45;
+  width: 230px;
+  max-height: min(620px, calc(100% - 24px));
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 18px;
+  background: #262626;
+  color: #f4f4f4;
+  box-shadow: 0 18px 44px rgba(0, 0, 0, 0.45);
+}
+
+.referenceTitle {
+  margin: 2px 10px 12px;
+  color: #c4c4c4;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.referenceMenu button {
+  width: 100%;
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  column-gap: 10px;
+  align-items: center;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #eee;
+  cursor: pointer;
+  text-align: left;
+}
+
+.referenceMenu button:disabled {
+  color: #6f6f6f;
+  cursor: default;
+}
+
+.referenceMenu button:hover:not(:disabled),
+.referenceItemActive {
+  background: #454545 !important;
+}
+
+.referenceMenu button span {
+  grid-row: span 2;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: #3b3b3b;
+}
+
+.referenceMenu strong {
+  font-size: 16px;
+}
+
+.referenceMenu small {
+  color: #aaa;
+  font-size: 12px;
+}
+
+.referenceDivider {
+  height: 1px;
+  margin: 10px 8px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.referenceGroupLabel {
+  margin: 8px 10px 4px;
+  color: #a8a8a8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.textChoiceNode {
+  position: relative;
+  width: 330px;
+  height: 330px;
+  padding: 34px;
+  border: 1px solid #3f3f3f;
+  border-radius: 14px;
+  background: #252525;
+  color: #f4f4f4;
+  cursor: move;
+}
+
+.textNodeTitle {
+  position: absolute;
+  top: -26px;
+  left: 0;
+  color: #8d8d8d;
+  font-size: 14px;
+}
+
+.textNodeIcon {
+  width: 100%;
+  margin: 8px 0 34px;
+  color: #5d5d5d;
+  font-size: 46px;
+  text-align: center;
+}
+
+.textTryLabel {
+  margin-bottom: 12px;
+  color: #aab2bd;
+  font-size: 18px;
+}
+
+.textChoiceItem {
+  width: 100%;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font-size: 17px;
+  cursor: pointer;
+}
+
+.textChoiceItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.textEditorWrap {
+  position: relative;
+  width: 620px;
+  padding-top: 62px;
+  cursor: move;
+}
+
+.textToolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: #242424;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.textToolbar button {
+  min-width: 28px;
+  height: 28px;
+  border: 0;
+  background: transparent;
+  color: #bababa;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.textEditorTitle {
+  margin-bottom: 10px;
+  color: #8d8d8d;
+  font-size: 14px;
+}
+
+.textEditorNode {
+  position: relative;
+  height: 300px;
+  padding: 24px;
+  border: 2px solid #969696;
+  border-radius: 16px;
+  background: #111;
+}
+
+.textEditorArea {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  outline: none;
+  resize: none;
+  background: transparent;
+  color: #f4f4f4;
+  font-size: 22px;
 }

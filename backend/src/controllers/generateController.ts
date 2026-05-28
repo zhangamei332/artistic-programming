@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
 import { generateWithDeepSeek, fixWithDeepSeek, imageToCodeWithDeepSeek } from '../services/ai/deepseek';
+import { generateWithGemini, fixWithGemini } from '../services/ai/gemini';
 
 const textGenerateSchema = z.object({
   prompt: z.string().min(1).max(2000),
@@ -12,6 +13,7 @@ const fixCodeSchema = z.object({
   code: z.string().min(1).max(50000),
   error: z.string().min(1).max(10000),
   language: z.enum(['threejs']),
+  model: z.enum(['deepseek', 'gemini', 'gpt']).default('deepseek'),
 });
 
 const imageToCodeSchema = z.object({
@@ -28,11 +30,9 @@ export async function generateTextController(
   try {
     const body = textGenerateSchema.parse(req.body);
 
-    // 仅实现 DeepSeek，其他模型后续添加
-    const result = await generateWithDeepSeek({
-      prompt: body.prompt,
-      language: body.language,
-    });
+    const result = body.model === 'gemini'
+      ? await generateWithGemini({ prompt: body.prompt, language: body.language })
+      : await generateWithDeepSeek({ prompt: body.prompt, language: body.language });
 
     res.json({
       success: true,
@@ -56,11 +56,9 @@ export async function fixCodeController(
   try {
     const body = fixCodeSchema.parse(req.body);
 
-    const result = await fixWithDeepSeek({
-      code: body.code,
-      error: body.error,
-      language: body.language,
-    });
+    const result = body.model === 'gemini'
+      ? await fixWithGemini({ code: body.code, error: body.error, language: body.language })
+      : await fixWithDeepSeek({ code: body.code, error: body.error, language: body.language });
 
     res.json({
       success: true,
@@ -83,10 +81,10 @@ export async function imageToCodeController(
   try {
     const body = imageToCodeSchema.parse(req.body);
 
-    const result = await imageToCodeWithDeepSeek({
-      imageDataUrl: body.image,
-      instruction: body.instruction,
-    });
+    // 图生代码暂用 DeepSeek（Gemini 图生代码需额外适配）
+    const result = body.model === 'gemini'
+      ? await generateWithGemini({ prompt: `根据图片描述生成代码：${body.instruction}`, language: 'threejs' })
+      : await imageToCodeWithDeepSeek({ imageDataUrl: body.image, instruction: body.instruction });
 
     res.json({
       success: true,

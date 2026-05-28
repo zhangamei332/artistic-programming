@@ -18,32 +18,57 @@ import * as THREE from 'three';
 // @param:视野=75
 // @node:renderer=渲染器
 
+const container = document.getElementById('canvas-container');
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
 camera.position.set(0, 0, 5);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // 限制像素比保护性能
+container.appendChild(renderer.domElement);
+
+// @node:resize=视口自适应
+const resizeObserver = new ResizeObserver(() => {
+  const { width, height } = container.getBoundingClientRect();
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
+});
+resizeObserver.observe(container);
 
 // --- 在这里创建你的 3D 对象，每个对象添加对应的 @node 标记 ---
 
 // @node:animation=动画循环
 // @param:速度=0.01
 
+let animationId;
 function animate() {
-  requestAnimationFrame(animate);
+  animationId = requestAnimationFrame(animate);
   // 在这里更新对象
   renderer.render(scene, camera);
 }
 animate();
 
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+// @node:dispose=资源释放
+// 注册到全局清理回调，组件卸载时自动调用
+window.__disposeCallbacks.push(function dispose() {
+  cancelAnimationFrame(animationId);
+  resizeObserver.disconnect();
+  renderer.dispose();
+  scene.traverse((obj) => {
+    if (obj.geometry) obj.geometry.dispose();
+    if (obj.material) {
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach(m => m.dispose());
+      } else {
+        obj.material.dispose();
+      }
+    }
+  });
 });
 `;
 
@@ -59,15 +84,27 @@ import * as THREE from 'three';
 // @param:视野=75
 // @node:renderer=渲染器
 
+const container = document.getElementById('canvas-container');
+
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+const camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
 camera.position.set(0, 0, 5);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-document.body.appendChild(renderer.domElement);
+renderer.setSize(container.clientWidth, container.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+container.appendChild(renderer.domElement);
+
+// @node:resize=视口自适应
+const resizeObserver = new ResizeObserver(() => {
+  const { width, height } = container.getBoundingClientRect();
+  camera.aspect = width / height;
+  camera.updateProjectionMatrix();
+  renderer.setSize(width, height);
+});
+resizeObserver.observe(container);
 
 // === 2D DOM元素（用于GSAP动画） ===
 // @node:gsap_timeline=主时间线
@@ -75,8 +112,10 @@ document.body.appendChild(renderer.domElement);
 // @param:yoyo=true
 const overlay = document.createElement('div');
 overlay.id = 'hud';
+overlay.style.position = 'absolute';
+overlay.style.top = '0';
 overlay.innerHTML = '<h1 style="color:white;font-size:24px;">HUD</h1>';
-document.body.appendChild(overlay);
+container.appendChild(overlay);
 
 // @node:gsap_tween=淡入动画
 // @param:property=opacity
@@ -97,20 +136,24 @@ const cube = new THREE.Mesh(geometry, material);
 scene.add(cube);
 
 // @node:animation=3D动画循环
+let animationId;
 function animate() {
-  requestAnimationFrame(animate);
-  // Three.js 3D渲染
+  animationId = requestAnimationFrame(animate);
   cube.rotation.x += 0.01;
   cube.rotation.y += 0.01;
   renderer.render(scene, camera);
-  // GSAP 自动管理2D DOM动画，无需手动更新
 }
 animate();
 
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
+// @node:dispose=资源释放
+window.__disposeCallbacks.push(function dispose() {
+  cancelAnimationFrame(animationId);
+  resizeObserver.disconnect();
+  if (typeof gsap !== 'undefined') gsap.globalTimeline.clear();
+  renderer.dispose();
+  geometry.dispose();
+  material.dispose();
+  overlay.remove();
 });
 `;
 
@@ -122,9 +165,15 @@ export const CODE_RULES = [
   '注释标记必须使用 // @node: / // @param: / @color: / @connect: 格式',
   'Three.js 代码使用 import * as THREE from \'three\' 导入',
   'GSAP 全局已加载（gsap.min.js），直接使用 gsap 对象，不需要 import',
+  'lil-gui 全局已加载，直接使用 lil.GUI 构造函数，不需要 import',
   'GSAP 负责 2D DOM元素动画，Three.js 负责 3D WebGL渲染，分工明确互不干扰',
-  '2D 绘图/图形/线条需求使用 GSAP + DOM 元素实现，不使用 p5.js',
+  'p5.js 全局已加载，如需使用 p5.js 请用实例模式 new p5(sketch)，不要用全局模式',
+  '2D 绘图/图形/线条需求优先使用 GSAP + SVG/DOM 或 p5.js 实现',
   '每个创建的 3D/2D 对象都要有对应的 @node 标记',
   '有数据依赖关系的节点之间必须添加 @connect 标记',
-  'renderer 必须通过 document.body.appendChild 挂载到 DOM',
+  'renderer.domElement 必须挂载到 container（getElementById("canvas-container")），禁止挂载到 document.body',
+  '必须使用 ResizeObserver 监听 container 大小变化来自适应视口，禁止使用 window.onresize',
+  '必须注册 dispose 函数到 window.__disposeCallbacks 释放所有 GPU 资源、动画帧和事件监听',
+  '控制面板必须使用 lil-gui 并设置 autoPlace: false，挂载到 container 内部',
+  '使用 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)) 限制像素比保护性能',
 ] as const;

@@ -1,9 +1,9 @@
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--color-border);
+  gap: 10px;
+  padding: 12px;
+  height: 100%;
   flex-shrink: 0;
   transition: background 0.2s;
 }
@@ -17,7 +17,7 @@
 
 /* 文件占位框容器 */
 .fileSlots {
-  display: flex;
+  display: none;
   flex-wrap: wrap;
   gap: 4px;
 }
@@ -127,16 +127,17 @@
 
 /* 文件夹链接按钮 */
 .folderRow {
-  display: flex;
+  display: none;
   align-items: center;
   gap: 6px;
-  padding: 0 2px;
+  padding: 0;
 }
 
 .folderBtn {
   font-size: 11px;
   padding: 0 10px;
   height: 26px;
+  width: 100%;
   color: #8c8c8c;
   border-color: #d9d9d9;
 }
@@ -150,6 +151,7 @@
   font-size: 11px;
   padding: 0 10px;
   height: 26px;
+  width: 100%;
   color: #8c8c8c;
   border-color: #d9d9d9;
 }
@@ -163,6 +165,7 @@
   font-size: 11px;
   padding: 0 10px;
   height: 26px;
+  width: 100%;
   color: #8c8c8c;
   border-color: #d9d9d9;
 }
@@ -257,12 +260,14 @@
   width: 100%;
   border-radius: var(--radius-md);
   font-size: 13px;
+  background: #f7f7f7;
 }
 
 .adjustInput {
   width: 100%;
   border-radius: var(--radius-md);
   font-size: 12px;
+  background: #f7f7f7;
 }
 
 .modelSelect {

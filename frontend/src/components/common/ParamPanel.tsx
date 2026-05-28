@@ -9,6 +9,7 @@ import {
   PlusOutlined,
   LinkOutlined,
   DeleteOutlined,
+  PlayCircleOutlined,
 } from '@ant-design/icons';
 import { categoryFromNodeType, categoryLabels, tdNodeTypes } from '../nodes/TDNodes';
 import { ANIMATION_MOTION_TYPES } from '../../utils/nodeSemantics';
@@ -24,6 +25,7 @@ interface ParamPanelProps {
   allEdges?: EdgeData[];
   onParamChange?: (nodeId: string, key: string, value: unknown) => void;
   onApply?: () => void;
+  onApplyAll?: () => void;
   onConnectNodes?: (sourceId: string, targetId: string) => void;
   onRemoveConnection?: (sourceId: string, targetId: string) => void;
   adjustExplanation?: string | null;
@@ -39,7 +41,7 @@ const catHeaderClasses: Record<string, string> = {
   drawing: styles.catDrawing,
 };
 
-export function ParamPanel({ selectedNode, allNodes, allEdges, onParamChange, onApply, onConnectNodes, onRemoveConnection, adjustExplanation }: ParamPanelProps) {
+export function ParamPanel({ selectedNode, allNodes, allEdges, onParamChange, onApply, onApplyAll, onConnectNodes, onRemoveConnection, adjustExplanation }: ParamPanelProps) {
   const [expanded, setExpanded] = useState(true);
   const [keyModalOpen, setKeyModalOpen] = useState(false);
   const [keyRecording, setKeyRecording] = useState('');
@@ -469,6 +471,21 @@ export function ParamPanel({ selectedNode, allNodes, allEdges, onParamChange, on
                 block
               >
                 保存调整局部参数
+              </Button>
+            </div>
+          )}
+
+          {onApplyAll && (paramEntries.length > 0 || isKeyboardNode || hasInteraction) && (
+            <div className={styles.applyRow}>
+              <Button
+                type="primary"
+                size="small"
+                icon={<PlayCircleOutlined />}
+                onClick={onApplyAll}
+                block
+                style={{ background: '#52c41a', borderColor: '#52c41a' }}
+              >
+                应用全部参数并预览
               </Button>
             </div>
           )}

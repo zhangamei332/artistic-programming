@@ -23,9 +23,9 @@ interface InputPanelProps {
 }
 
 const models = [
-  { value: 'deepseek', label: 'DeepSeek' },
-  { value: 'gemini', label: 'Gemini' },
-  { value: 'gpt', label: 'GPT-4' },
+  { value: 'chatgpt5.5', label: 'chatgpt5.5' },
+  { value: 'gemini3.5', label: 'gemini3.5' },
+  { value: 'deepseekv4', label: 'deepSeekV4' },
 ];
 
 interface FileEntry {
@@ -46,7 +46,7 @@ type SlotKey = typeof FIXED_SLOTS[number]['key'];
 export function InputPanel({ onGenerate, onAdjust, onCodeTransform, onImageToCode, isProcessing, hasCode }: InputPanelProps) {
   const [prompt, setPrompt] = useState('');
   const [adjustPrompt, setAdjustPrompt] = useState('');
-  const [model, setModel] = useState('deepseek');
+  const [model, setModel] = useState('chatgpt5.5');
   const [slotFiles, setSlotFiles] = useState<Record<SlotKey, FileEntry | null>>({
     svg: null, txt: null, obj: null, mp4: null,
   });
@@ -367,29 +367,29 @@ export function InputPanel({ onGenerate, onAdjust, onCodeTransform, onImageToCod
         </div>
       </Modal>
 
-      {/* 代码转化按钮 */}
+      {/* 代码生代码按钮 */}
       {onCodeTransform && (
         <div className={styles.folderRow}>
-          <Tooltip title="粘贴已有代码并进行AI转化">
+          <Tooltip title="粘贴已有代码并让AI基于此生成新代码">
             <Button
               size="small"
               icon={<SwapOutlined />}
               className={styles.transformBtn}
               onClick={() => setTransformOpen(true)}
             >
-              代码转化
+              代码生代码
             </Button>
           </Tooltip>
         </div>
       )}
 
-      {/* 代码转化弹窗 */}
+      {/* 代码生代码弹窗 */}
       <Modal
-        title="代码转化"
+        title="代码生代码"
         open={transformOpen}
         onCancel={() => setTransformOpen(false)}
         onOk={handleTransform}
-        okText="开始转化"
+        okText="开始生成"
         cancelText="取消"
         width={700}
         confirmLoading={isProcessing}

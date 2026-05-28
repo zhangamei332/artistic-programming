@@ -8,11 +8,17 @@ import {
   ThunderboltOutlined,
   ReloadOutlined,
   CheckCircleOutlined,
+  ExportOutlined,
+  SaveOutlined,
+  DownloadOutlined,
+  CloseOutlined,
+  DoubleLeftOutlined,
+  DoubleRightOutlined,
 } from '@ant-design/icons';
 import { NodeCanvas } from '../nodes/NodeCanvas';
 import { NodeToolbox } from '../nodes/NodeToolbox';
 import { CodeEditor } from '../editor/CodeEditor';
-import { PreviewWindow } from '../preview/PreviewWindow';
+import { PreviewWindow, exportStandaloneHTML } from '../preview/PreviewWindow';
 import { VerifierIframe } from '../preview/VerifierIframe';
 import { InputPanel } from '../common/InputPanel';
 import { CorrectionLog } from '../common/CorrectionLog';
@@ -25,12 +31,12 @@ import styles from './AppLayout.module.css';
 
 const { Header, Content } = Layout;
 const { Title, Text } = Typography;
+const TD_PREVIEW_BACKGROUND = '/td-preview-background.jpg';
 
 type ViewMode = 'editor' | 'preview';
 
 export type { NodeData, EdgeData };
 
-/** Draggable resize handle — controls the width of the panel to its LEFT */
 function useResizeHandle(
   initialWidth: number,
   minWidth: number,
@@ -72,6 +78,9 @@ function useResizeHandle(
 export function AppLayout() {
   const [viewMode, setViewMode] = useState<ViewMode>('preview');
   const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
+  const [previewReferenceActive, setPreviewReferenceActive] = useState(false);
+  const [fullscreenPreview, setFullscreenPreview] = useState(false);
+  const [chatCollapsed, setChatCollapsed] = useState(true);
 
   const {
     phase,
@@ -108,14 +117,11 @@ export function AppLayout() {
     imageToCode,
   } = useAutoFix();
 
-  // Resizable panel widths — each handle controls the panel to its LEFT
-  const [sidebarWidth, onSidebarResize, sidebarResizing] = useResizeHandle(340, 220, 480);
-  const [canvasWidth, onCanvasResize, canvasResizing] = useResizeHandle(380, 200, 700);
-
   const handleGenerate = useCallback(
     (prompt: string, model: string, files: File[]) => {
       setViewMode('preview');
       setSelectedNode(null);
+      setPreviewReferenceActive(false);
       startAutoFix(prompt, model, files);
     },
     [startAutoFix],
@@ -133,6 +139,7 @@ export function AppLayout() {
     (sourceCode: string, instruction: string) => {
       setViewMode('preview');
       setSelectedNode(null);
+      setPreviewReferenceActive(false);
       transformCode(sourceCode, instruction);
     },
     [transformCode],
@@ -142,6 +149,7 @@ export function AppLayout() {
     (imageFile: File, instruction: string) => {
       setViewMode('preview');
       setSelectedNode(null);
+      setPreviewReferenceActive(false);
       imageToCode(imageFile, instruction);
     },
     [imageToCode],
@@ -202,11 +210,11 @@ export function AppLayout() {
       restoreHistory(entry);
       setViewMode('preview');
       setSelectedNode(null);
+      setPreviewReferenceActive(false);
     },
     [restoreHistory],
   );
 
-  // 拖拽历史记录形成父子级时，触发代码合并重新生成
   const handleMoveToParent = useCallback(
     (entryId: string, newParentId: string | null) => {
       moveToParent(entryId, newParentId);
@@ -215,16 +223,38 @@ export function AppLayout() {
         const parentEntry = history.find((e) => e.id === newParentId);
         const childEntry = history.find((e) => e.id === entryId);
         if (parentEntry && childEntry) {
-          // 以父级代码为基础，子级提示词作为调整指令，重新生成代码
           restoreHistory(parentEntry);
           adjustCode(childEntry.prompt);
           setViewMode('preview');
           setSelectedNode(null);
+          setPreviewReferenceActive(false);
         }
       }
     },
     [history, moveToParent, restoreHistory, adjustCode],
   );
+
+  const handlePreviewNodeActivate = useCallback(() => {
+    setViewMode('preview');
+    setSelectedNode(null);
+    setPreviewReferenceActive(true);
+    if (finalCode) refreshPreview();
+  }, [finalCode, refreshPreview]);
+
+  const handlePreviewFullscreen = useCallback(() => {
+    setPreviewReferenceActive(true);
+    setFullscreenPreview(true);
+    if (finalCode) refreshPreview();
+  }, [finalCode, refreshPreview]);
+
+  useEffect(() => {
+    if (!fullscreenPreview) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setFullscreenPreview(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [fullscreenPreview]);
 
   const code = finalCode || '';
   const nodes = finalNodes || [];
@@ -233,13 +263,11 @@ export function AppLayout() {
   const phaseText: Record<string, string> = {
     generating: 'AI 正在生成代码...',
     verifying: '正在沙箱中验证代码...',
-    fixing: `正在修复第 ${currentAttempt} 个错误 (最多 ${maxAttempts} 次)...`,
+    fixing: `正在修复第 ${currentAttempt} 个错误（最多 ${maxAttempts} 次）...`,
   };
 
-  const isResizing = sidebarResizing || canvasResizing;
-
   return (
-    <Layout className={`${styles.layout} ${isResizing ? styles.resizing : ''}`}>
+    <Layout className={styles.layout}>
       <Header className={styles.header}>
         <div className={styles.headerLeft}>
           <Title level={4} className={styles.logo}>
@@ -248,83 +276,19 @@ export function AppLayout() {
         </div>
         <Space className={styles.headerRight}>
           <Tooltip title="节点模式">
-            <Button
-              type="text"
-              icon={<ApartmentOutlined />}
-              className={styles.modeBtn}
-            />
+            <Button type="text" icon={<ApartmentOutlined />} className={styles.modeBtn} />
           </Tooltip>
           <Tooltip title="设置">
-            <Button
-              type="text"
-              icon={<SettingOutlined />}
-              className={styles.modeBtn}
-            />
+            <Button type="text" icon={<SettingOutlined />} className={styles.modeBtn} />
           </Tooltip>
         </Space>
       </Header>
 
       <Content className={styles.content}>
-        {/* 最左侧：对话栏 */}
-        <div className={styles.leftSidebar} style={{ width: sidebarWidth }}>
-          <InputPanel
-            onGenerate={handleGenerate}
-            onAdjust={handleAdjust}
-            onCodeTransform={handleCodeTransform}
-            onImageToCode={handleImageToCode}
-            isProcessing={isProcessing}
-            hasCode={!!code}
-          />
-          <HistoryPanel
-            history={history}
-            onRestore={handleRestoreHistory}
-            onDelete={deleteHistory}
-            onMoveToParent={handleMoveToParent}
-            activeBaseId={activeBaseHistoryId}
-          />
-        </div>
-
-        {/* 手柄 A: 对话栏 ↔ 工具箱 — 控制对话栏宽度 */}
-        <div className={styles.resizeHandle} onMouseDown={onSidebarResize} />
-
-        {/* 节点工具箱 */}
         <NodeToolbox />
 
-        {/* 节点画布 */}
-        <div className={styles.centerPanel} style={{ width: canvasWidth }}>
-          <NodeCanvas
-            key={generationKey}
-            nodes={nodes}
-            edges={edges}
-            onNodeSelect={handleNodeSelect}
-            onGraphChange={handleGraphChange}
-            onGenerateFromGraph={handleGenerateFromGraph}
-          />
-        </div>
-
-        {/* 手柄 B: 画布 ↔ 参数抽屉 — 控制画布宽度 */}
-        <div className={styles.resizeHandle} onMouseDown={onCanvasResize} />
-
-        {/* 参数抽屉 — 选中节点时滑出 */}
-        <div
-          className={`${styles.paramDrawer} ${selectedNode ? styles.paramDrawerOpen : ''}`}
-          style={{ width: selectedNode ? 290 : 0 }}
-        >
-          <ParamPanel
-            selectedNode={selectedNode}
-            allNodes={nodes}
-            allEdges={edges}
-            onParamChange={handleParamChange}
-            onApply={handleSaveLocalParams}
-            onConnectNodes={handleConnectNodes}
-            onRemoveConnection={handleRemoveConnection}
-            adjustExplanation={adjustExplanation}
-          />
-        </div>
-
-        {/* 右侧：预览/代码 */}
-        <div className={styles.rightPanel}>
-          <div className={styles.rightToolbar}>
+        <div className={styles.workspace}>
+          <div className={styles.canvasToolbar}>
             <Tooltip title="应用所有节点的参数修改并刷新预览">
               <Button
                 type="primary"
@@ -336,57 +300,201 @@ export function AppLayout() {
                 应用全部参数并预览
               </Button>
             </Tooltip>
-            <div style={{ flex: 1 }} />
             <Button
               type={viewMode === 'preview' ? 'primary' : 'default'}
               size="small"
               icon={<PlayCircleOutlined />}
-              onClick={() => setViewMode('preview')}
+              onClick={handlePreviewNodeActivate}
             >
-              预览
+              预览节点
             </Button>
             <Button
               type={viewMode === 'editor' ? 'primary' : 'default'}
               size="small"
               icon={<CodeOutlined />}
-              onClick={() => setViewMode('editor')}
+              onClick={() => setViewMode((mode) => (mode === 'editor' ? 'preview' : 'editor'))}
             >
               代码
             </Button>
-            <Tooltip title="刷新预览">
+            <Tooltip title="刷新预览节点">
+              <Button size="small" icon={<ReloadOutlined />} onClick={refreshPreview} disabled={!code} />
+            </Tooltip>
+            <div className={styles.toolbarSep} />
+            <Tooltip title="在新窗口打开独立预览">
               <Button
                 size="small"
-                icon={<ReloadOutlined />}
-                onClick={refreshPreview}
+                icon={<ExportOutlined />}
+                onClick={() => {
+                  const html = exportStandaloneHTML(code);
+                  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                  window.open(URL.createObjectURL(blob), '_blank');
+                }}
+                disabled={!code}
+              >
+                新窗口
+              </Button>
+            </Tooltip>
+            <Tooltip title="保存到 .live-preview/index.html">
+              <Button
+                size="small"
+                icon={<SaveOutlined />}
+                onClick={async () => {
+                  try {
+                    const res = await fetch('/api/preview/save', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ code }),
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                      alert(`已保存到 ${data.path}`);
+                    }
+                  } catch {
+                    alert('保存失败，请检查后端是否运行');
+                  }
+                }}
+                disabled={!code}
+              >
+                Live
+              </Button>
+            </Tooltip>
+            <Tooltip title="下载为独立 HTML 文件">
+              <Button
+                size="small"
+                icon={<DownloadOutlined />}
+                onClick={() => {
+                  const html = exportStandaloneHTML(code);
+                  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `artistic-preview-${Date.now()}.html`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                }}
                 disabled={!code}
               />
             </Tooltip>
           </div>
 
+          <NodeCanvas
+            key={generationKey}
+            nodes={nodes}
+            edges={edges}
+            previewNode={{
+              code,
+              refreshKey: previewKey,
+              referenceActive: previewReferenceActive,
+              referenceBackgroundUrl: TD_PREVIEW_BACKGROUND,
+              isProcessing,
+              onActivate: handlePreviewNodeActivate,
+              onFullscreen: handlePreviewFullscreen,
+            }}
+            onImageToCode={handleImageToCode}
+            onExpandChat={() => setChatCollapsed(false)}
+            onNodeSelect={handleNodeSelect}
+            onGraphChange={handleGraphChange}
+            onGenerateFromGraph={handleGenerateFromGraph}
+          />
+
           <CorrectionLog log={correctionLog} phase={phase} />
 
-          <div className={styles.rightContent}>
-            {isProcessing ? (
-              <div className={styles.loading}>
-                <Spin
-                  size="large"
-                  indicator={<ThunderboltOutlined style={{ fontSize: 36 }} spin />}
+          {isProcessing && (
+            <div className={styles.loading}>
+              <Spin size="large" indicator={<ThunderboltOutlined style={{ fontSize: 36 }} spin />} />
+              <Text className={styles.loadingText}>{phaseText[phase] || '处理中...'}</Text>
+              <Text className={styles.loadingSubText}>
+                第 {currentAttempt}/{maxAttempts} 次尝试
+              </Text>
+            </div>
+          )}
+
+          {viewMode === 'editor' && (
+            <div className={styles.codeOverlay}>
+              <div className={styles.codeOverlayHeader}>
+                <span>生成代码</span>
+                <Button
+                  size="small"
+                  type="text"
+                  icon={<CloseOutlined />}
+                  onClick={() => setViewMode('preview')}
                 />
-                <Text className={styles.loadingText}>
-                  {phaseText[phase] || '处理中...'}
-                </Text>
-                <Text className={styles.loadingSubText}>
-                  第 {currentAttempt}/{maxAttempts} 次尝试
-                </Text>
               </div>
-            ) : viewMode === 'preview' ? (
-              <PreviewWindow code={code} refreshKey={previewKey} />
-            ) : (
               <CodeEditor code={code} onChange={() => {}} />
-            )}
-          </div>
+            </div>
+          )}
+        </div>
+
+        <div
+          className={`${styles.paramDrawer} ${selectedNode ? styles.paramDrawerOpen : ''}`}
+          style={{ width: selectedNode ? 290 : 0 }}
+        >
+          <ParamPanel
+            selectedNode={selectedNode}
+            allNodes={nodes}
+            allEdges={edges}
+            onParamChange={handleParamChange}
+            onApply={handleSaveLocalParams}
+            onApplyAll={handleApplyAllParams}
+            onConnectNodes={handleConnectNodes}
+            onRemoveConnection={handleRemoveConnection}
+            adjustExplanation={adjustExplanation}
+          />
+        </div>
+
+        <div className={`${styles.chatDock} ${chatCollapsed ? styles.chatDockCollapsed : ''}`}>
+          <button
+            type="button"
+            className={styles.chatCollapseBtn}
+            onClick={() => setChatCollapsed((collapsed) => !collapsed)}
+            aria-label={chatCollapsed ? '展开对话' : '收起对话'}
+          >
+            {chatCollapsed ? <DoubleLeftOutlined /> : <DoubleRightOutlined />}
+          </button>
+          {!chatCollapsed && (
+            <>
+              <div className={styles.chatColumn}>
+                <InputPanel
+                  onGenerate={handleGenerate}
+                  onAdjust={handleAdjust}
+                  onCodeTransform={handleCodeTransform}
+                  onImageToCode={handleImageToCode}
+                  isProcessing={isProcessing}
+                  hasCode={!!code}
+                />
+              </div>
+              <div className={styles.historyColumn}>
+                <HistoryPanel
+                  history={history}
+                  onRestore={handleRestoreHistory}
+                  onDelete={deleteHistory}
+                  onMoveToParent={handleMoveToParent}
+                  activeBaseId={activeBaseHistoryId}
+                />
+              </div>
+            </>
+          )}
         </div>
       </Content>
+
+      {fullscreenPreview && (
+        <div className={styles.fullscreenPreview}>
+          <PreviewWindow
+            code={code}
+            refreshKey={previewKey}
+            referenceActive
+            referenceBackgroundUrl={TD_PREVIEW_BACKGROUND}
+          />
+          <button
+            type="button"
+            className={styles.fullscreenClose}
+            onClick={() => setFullscreenPreview(false)}
+            aria-label="退出全屏预览"
+          >
+            <CloseOutlined />
+          </button>
+        </div>
+      )}
 
       {verificationCode && (
         <VerifierIframe

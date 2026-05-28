@@ -38,7 +38,7 @@ export interface HistoryEntry {
 export type Phase = 'idle' | 'generating' | 'verifying' | 'fixing' | 'success' | 'failed';
 
 const MAX_ATTEMPTS = 3;
-const VERIFY_TIMEOUT = 10000;
+const VERIFY_TIMEOUT = 15000;
 const MAX_HISTORY = 50;
 
 /** Compute a human-readable diff between two node sets */
@@ -243,18 +243,37 @@ export function useAutoFix() {
             code,
             error,
             language: languageRef.current,
+            model: lastModelRef.current,
           }),
         });
 
         const result = await response.json();
         if (result.success && result.data?.code) {
           const fixedCode = result.data.code;
+          const apiNodes: NodeData[] = result.data.nodes;
+          const apiEdges: EdgeData[] = result.data.edges;
+          const newNodes: NodeData[] = (apiNodes && apiNodes.length > 0) ? apiNodes : nodesRef.current;
+          const newEdges: EdgeData[] = (apiEdges && apiEdges.length > 0) ? apiEdges : edgesRef.current;
+
+          codeRef.current = fixedCode;
+          nodesRef.current = newNodes;
+          edgesRef.current = newEdges;
+
           addLog({
             iteration: attemptRef.current,
             code: fixedCode,
             error: null,
             phase: 'fixing',
           });
+
+          // Show fixed code immediately, verify in background
+          setFinalCode(fixedCode);
+          setFinalNodes(newNodes);
+          setFinalEdges(newEdges);
+          setPhase('success');
+          setPreviewKey((k) => k + 1);
+          setGenerationKey((k) => k + 1);
+
           startVerify(fixedCode);
         } else {
           setPhase('failed');
@@ -302,15 +321,10 @@ export function useAutoFix() {
       phase: 'success',
     });
 
+    // Preview is already showing (optimistic), just update phase
     setPhase('success');
-    setFinalCode(codeRef.current);
-    setFinalNodes(nodesRef.current);
-    setFinalEdges(edgesRef.current);
     setVerificationCode(null);
-
-    // Save to history
-    saveToHistory(lastPromptRef.current, lastModelRef.current);
-  }, [addLog, clearVerifyTimer, saveToHistory]);
+  }, [addLog, clearVerifyTimer]);
 
   const startAutoFix = useCallback(
     async (prompt: string, model: string, files: File[] = []) => {
@@ -365,6 +379,16 @@ export function useAutoFix() {
             phase: 'generating',
           });
 
+          // Show preview IMMEDIATELY (optimistic), verify in background
+          setFinalCode(code);
+          setFinalNodes(filteredNodes);
+          setFinalEdges(filteredEdges);
+          setPhase('success');
+          setPreviewKey((k) => k + 1);
+          setGenerationKey((k) => k + 1);
+          saveToHistory(prompt.trim(), model);
+
+          // Background verification — will auto-fix if errors found
           startVerify(code);
         } else {
           console.error('生成失败:', result.error);
@@ -375,7 +399,7 @@ export function useAutoFix() {
         setPhase('failed');
       }
     },
-    [addLog, startVerify],
+    [addLog, startVerify, saveToHistory],
   );
 
   const onVerifierError = useCallback(
@@ -429,6 +453,7 @@ export function useAutoFix() {
           code: originalCode,
           error: `请根据以下节点图更新代码参数:\n${prompt}`,
           language,
+          model: lastModelRef.current,
         }),
       });
 
@@ -437,7 +462,6 @@ export function useAutoFix() {
         const newCode = result.data.code;
         const apiNodes: NodeData[] = result.data.nodes;
         const apiEdges: EdgeData[] = result.data.edges;
-        // 空数组在JS中是truthy的，必须用length检测
         const newNodes: NodeData[] = (apiNodes && apiNodes.length > 0) ? apiNodes : nodes;
         const newEdges: EdgeData[] = (apiEdges && apiEdges.length > 0) ? apiEdges : edges;
         codeRef.current = newCode;
@@ -511,6 +535,7 @@ export function useAutoFix() {
             code: currentCode,
             error: `用户要求调整: ${adjustPrompt.trim()}\n请修改代码以满足以上调整要求，保持代码结构不变，仅修改相关部分。`,
             language: languageRef.current,
+            model: lastModelRef.current,
           }),
         });
 
@@ -647,6 +672,7 @@ export function useAutoFix() {
             code: currentCode,
             error: `请根据以下节点图重新生成完整代码（这是基于节点图的代码重构，请仔细遵循每个节点的参数和连线关系）:\n${graphText}`,
             language,
+            model: lastModelRef.current,
           }),
         });
 
@@ -784,6 +810,7 @@ export function useAutoFix() {
             code: sourceCode,
             error: `用户要求对以下代码进行转化:\n${instruction.trim()}\n请根据以上指令修改代码，保持 @node/@connect 注释标记。`,
             language: 'threejs',
+            model: lastModelRef.current,
           }),
         });
 
@@ -811,6 +838,15 @@ export function useAutoFix() {
             phase: 'generating',
           });
 
+          // Show preview immediately, verify in background
+          setFinalCode(code);
+          setFinalNodes(filteredNodes);
+          setFinalEdges(filteredEdges);
+          setPhase('success');
+          setPreviewKey((k) => k + 1);
+          setGenerationKey((k) => k + 1);
+          saveToHistory(`[代码转化] ${instruction.trim()}`, 'deepseek');
+
           startVerify(code);
         } else {
           console.error('代码转化失败:', result.error);
@@ -823,7 +859,7 @@ export function useAutoFix() {
         setAdjustExplanation('代码转化请求发送失败，请检查网络');
       }
     },
-    [addLog, startVerify],
+    [addLog, startVerify, saveToHistory],
   );
 
   // --- Image to code: user uploads an image + instruction ---
@@ -887,6 +923,15 @@ export function useAutoFix() {
             phase: 'generating',
           });
 
+          // Show preview immediately, verify in background
+          setFinalCode(code);
+          setFinalNodes(filteredNodes);
+          setFinalEdges(filteredEdges);
+          setPhase('success');
+          setPreviewKey((k) => k + 1);
+          setGenerationKey((k) => k + 1);
+          saveToHistory(`[图生代码] ${instruction.trim()}`, 'deepseek');
+
           startVerify(code);
         } else {
           console.error('图生代码失败:', result.error);
@@ -899,7 +944,7 @@ export function useAutoFix() {
         setAdjustExplanation('图生代码请求发送失败，请检查网络');
       }
     },
-    [addLog, startVerify],
+    [addLog, startVerify, saveToHistory],
   );
 
   const refreshPreview = useCallback(() => {

@@ -3,7 +3,10 @@
   border-radius: 8px;
   font-size: 12px;
   min-width: 120px;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+  background: #252525;
+  border: 1.5px solid #9a9a9a;
+  color: #f4f4f4;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.32);
   position: relative;
 }
 
@@ -11,8 +14,9 @@
   font-weight: 600;
   font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0;
   margin-bottom: 4px;
+  color: #d7d7d7;
   opacity: 0.8;
 }
 
@@ -24,7 +28,7 @@
 .params {
   margin-top: 4px;
   font-size: 11px;
-  color: #666;
+  color: #a8a8a8;
 }
 
 .paramRow {
@@ -38,11 +42,11 @@
 }
 
 .paramRow:hover {
-  background: rgba(0, 0, 0, 0.08);
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .paramKey {
-  color: #888;
+  color: #aaa;
   flex-shrink: 0;
 }
 
@@ -51,7 +55,7 @@
 }
 
 .paramVal {
-  color: #333;
+  color: #f0f0f0;
   font-weight: 500;
   text-align: right;
   overflow: hidden;
@@ -143,4 +147,31 @@
 
 .dragHandle:active {
   cursor: grabbing;
+}
+
+.nodeScene,
+.nodeGeometry,
+.nodeLight,
+.nodeControl,
+.nodeEffect,
+.nodeInteraction,
+.nodeDrawing,
+.nodeFile {
+  background: #252525;
+  border: 1.5px solid #9a9a9a;
+}
+
+.nodeFile {
+  border-style: dashed;
+}
+
+.nodeScene .header,
+.nodeGeometry .header,
+.nodeLight .header,
+.nodeControl .header,
+.nodeEffect .header,
+.nodeInteraction .header,
+.nodeDrawing .header,
+.nodeFile .header {
+  color: #d7d7d7;
 }

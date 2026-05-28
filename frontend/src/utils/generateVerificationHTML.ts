@@ -2,7 +2,7 @@ const VERIFICATION_SCRIPT = `
 <script>
 (function() {
   var hasError = false;
-  var VERIFY_TIMEOUT = 3500;
+  var VERIFY_TIMEOUT = 1500;
 
   function sendError(msg) {
     if (hasError) return;
@@ -20,6 +20,9 @@ const VERIFICATION_SCRIPT = `
   window.addEventListener('unhandledrejection', function(e) {
     sendError(e.reason && e.reason.message ? e.reason.message : String(e.reason));
   });
+
+  // dispose registry for cleanup (same as preview iframe)
+  window.__disposeCallbacks = [];
 
   parent.postMessage({ type: 'preview:loaded' }, '*');
 
@@ -61,13 +64,22 @@ export function generateVerificationHTML(code: string): string {
   return `<!DOCTYPE html>
 <html>
 <head>
+<meta charset="utf-8">
 <style>
+  * { box-sizing: border-box; }
   body { margin: 0; overflow: hidden; background: #1a1a2e; }
   canvas { display: block; }
+  #canvas-container {
+    width: 100vw; height: 100vh;
+    position: relative; overflow: hidden;
+  }
+  .lil-gui { position: absolute !important; z-index: 10; }
 </style>
+<link rel="modulepreload" href="https://unpkg.com/three@0.160.0/build/three.module.js">
 ${VERIFICATION_SCRIPT}
 </head>
 <body>
+  <div id="canvas-container"></div>
   <script type="importmap">
   {
     "imports": {
@@ -77,6 +89,8 @@ ${VERIFICATION_SCRIPT}
   }
   </script>
   <script src="https://unpkg.com/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="https://unpkg.com/lil-gui@0.19.2/dist/lil-gui.umd.min.js"></script>
+  <script src="https://unpkg.com/p5@1.11.1/lib/p5.min.js"></script>
   <script type="module">
 ${escapedCode}
   </script>
