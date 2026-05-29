@@ -22,6 +22,127 @@
   gap: var(--spacing-md);
 }
 
+.projectSwitcher {
+  position: relative;
+}
+
+.logoButton {
+  height: 62px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  border: 0;
+  border-radius: 18px;
+  background: transparent;
+  color: #f6f7f8;
+  cursor: pointer;
+}
+
+.logoButton:hover .libLogoMark,
+.logoButton:hover .libLogoText {
+  background-color: #333538;
+}
+
+.libLogoMark,
+.libLogoText {
+  height: 60px;
+  display: inline-flex;
+  align-items: center;
+  background: #282a2d;
+}
+
+.libLogoMark {
+  width: 52px;
+  justify-content: center;
+  border-radius: 18px 0 0 18px;
+}
+
+.libLogoMark::before {
+  content: '';
+  width: 30px;
+  height: 22px;
+  display: block;
+  background:
+    linear-gradient(90deg, #fff 0 34%, transparent 34% 48%, #fff 48% 82%, transparent 82%),
+    linear-gradient(#fff 0 0);
+  clip-path: polygon(12% 10%, 100% 10%, 84% 88%, 0 88%);
+}
+
+.libLogoText {
+  margin-left: -12px;
+  padding-right: 18px;
+  border-radius: 0 18px 18px 0;
+  font-size: 22px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.projectDivider {
+  width: 1px;
+  height: 34px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.projectName {
+  max-width: 180px;
+  overflow: hidden;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.projectMenu {
+  position: absolute;
+  left: 0;
+  top: 68px;
+  z-index: 80;
+  width: 300px;
+  padding: 22px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 22px;
+  background: #252525;
+  box-shadow: 0 24px 58px rgba(0, 0, 0, 0.54);
+}
+
+.projectMenu button {
+  width: 100%;
+  height: 66px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: #f6f6f6;
+  font-size: 20px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.projectMenu button:hover {
+  background: #343537;
+}
+
+.projectMenu button :global(.anticon) {
+  width: 24px;
+  color: #d9dde3;
+  font-size: 20px;
+}
+
+.projectDeleteItem:hover,
+.projectDeleteItem:hover :global(.anticon) {
+  color: #ff6b6b;
+}
+
+.projectMenuDivider {
+  height: 1px;
+  margin: 8px 0;
+  background: rgba(255, 255, 255, 0.12);
+}
+
 .logo {
   margin: 0;
   color: #f3f5f7 !important;
@@ -32,14 +153,394 @@
 .headerRight {
   display: flex;
   align-items: center;
+  gap: 10px;
 }
 
 .modeBtn {
+  display: none;
   color: #b7bdc5;
   font-size: 16px;
 }
 
+.headerIconBtn,
+.marketBtn,
+.memberBtn {
+  position: relative;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: #222325;
+  color: #f3f5f7;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+}
+
+.headerIconBtn {
+  width: 46px;
+  font-size: 18px;
+}
+
+.headerIconBtn:hover,
+.marketBtn:hover,
+.memberBtn:hover {
+  background: #2c2d30;
+}
+
+.notifyDot {
+  position: absolute;
+  right: 8px;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ff3b4e;
+}
+
+.marketBtn {
+  gap: 8px;
+  padding: 0 16px;
+  color: #1ed7e8;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.memberWrap {
+  position: relative;
+}
+
+.memberBtn {
+  gap: 8px;
+  min-width: 188px;
+  padding: 0 10px 0 14px;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.memberCenterIcon {
+  width: 30px;
+  height: 30px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #2e3136;
+  color: #ffce57;
+  font-size: 17px;
+}
+
+.memberBtn :global(.anticon-thunderbolt) {
+  color: #ffe08a;
+}
+
+.avatarMark,
+.userAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #f4f8ff 0%, #4c7cff 100%);
+  color: #0f1630;
+  font-weight: 900;
+}
+
+.avatarMark {
+  width: 34px;
+  height: 34px;
+  margin-left: 2px;
+}
+
+.userMenu {
+  position: absolute;
+  right: 0;
+  top: 58px;
+  z-index: 70;
+  width: 490px;
+  padding: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 18px;
+  background: #18191b;
+  color: #f5f5f5;
+  box-shadow: 0 22px 56px rgba(0, 0, 0, 0.54);
+}
+
+.userHero {
+  display: grid;
+  grid-template-columns: 54px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 12px;
+  background: #242527;
+}
+
+.userAvatar {
+  width: 46px;
+  height: 46px;
+}
+
+.userHero strong {
+  display: block;
+  font-size: 18px;
+}
+
+.userHero small {
+  color: #aeb0b6;
+}
+
+.userHero button,
+.vipCard button {
+  border: 0;
+  border-radius: 18px;
+  background: #121316;
+  color: #fff;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.userHero button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: transparent;
+}
+
+.vipCard,
+.infoCard {
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 12px;
+}
+
+.vipCard {
+  background: linear-gradient(90deg, #291b10 0%, #3c2b15 100%);
+}
+
+.vipCard div,
+.infoCard div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.vipCard strong {
+  font-size: 17px;
+}
+
+.vipCard span,
+.infoCard span,
+.vipCard p,
+.infoCard p {
+  color: #bdbec2;
+}
+
+.vipCard button {
+  padding: 8px 16px;
+}
+
+.vipCard p,
+.infoCard p {
+  margin: 12px 0 0;
+}
+
+.vipCard p span,
+.infoCard strong {
+  color: #1ed7e8;
+}
+
+.infoCard {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #191a1c;
+}
+
+.menuRow {
+  width: 100%;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 0;
+  background: transparent;
+  color: #f5f5f5;
+  font-size: 17px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.menuRow:hover {
+  color: #1ed7e8;
+}
+
+.themeSwitch {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 16px;
+  background: #2b2c2f;
+}
+
+.marketOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 64px 20px 28px;
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.marketModal {
+  position: relative;
+  width: min(1120px, calc(100vw - 40px));
+  max-height: calc(100vh - 92px);
+  overflow: auto;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 18px;
+  background: #050607;
+  color: #fff;
+  box-shadow: 0 26px 72px rgba(0, 0, 0, 0.62);
+}
+
+.marketClose {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  z-index: 2;
+  border: 0;
+  background: transparent;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.marketHero {
+  position: relative;
+  padding: 56px 56px 34px;
+  text-align: center;
+  background:
+    linear-gradient(90deg, rgba(46, 68, 88, 0.62), rgba(5, 6, 7, 0.1) 34%, rgba(5, 6, 7, 0.2)),
+    #050607;
+}
+
+.marketHero h2 {
+  margin: 0;
+  font-size: 34px;
+  line-height: 1.2;
+}
+
+.marketHero h2 span {
+  display: inline-flex;
+  margin-left: 8px;
+  padding: 6px 12px;
+  border-radius: 9px;
+  background: #67dcff;
+  color: #082230;
+  font-size: 18px;
+}
+
+.marketHero p {
+  margin: 12px 0 0;
+  color: #e7e7e7;
+  font-size: 16px;
+}
+
+.marketHero button {
+  position: absolute;
+  right: 56px;
+  bottom: 30px;
+  border: 0;
+  background: transparent;
+  color: #f3f3f3;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.marketGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 14px;
+  padding: 20px 34px 10px;
+}
+
+.marketPlan {
+  position: relative;
+  min-height: 270px;
+  padding: 60px 26px 20px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  background: #242426;
+}
+
+.marketPlanGreen {
+  background: #142511;
+}
+
+.planBonus {
+  position: absolute;
+  right: 0;
+  top: -14px;
+  padding: 6px 12px;
+  border-radius: 8px 8px 0 8px;
+  background: #ffc95b;
+  color: #342000;
+  font-weight: 800;
+}
+
+.marketPlan h3 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.marketPlan > strong {
+  color: #ffc95b;
+  font-size: 17px;
+}
+
+.planPoints {
+  margin: 46px 0 26px;
+  font-size: 38px;
+  font-weight: 900;
+}
+
+.marketPlan p {
+  color: #ffd36b;
+}
+
+.planBuy {
+  width: 100%;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 8px;
+  background: transparent;
+  color: #fff;
+  font-size: 18px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.marketPlan small {
+  display: block;
+  margin-top: 16px;
+  text-align: center;
+  color: #9a9a9a;
+}
+
+.marketNote {
+  margin: 8px 34px 28px;
+  color: #bdbdbd;
+}
+
 .content {
+  position: relative;
   flex: 1;
   display: flex;
   overflow: hidden;
@@ -99,7 +600,7 @@
   left: 50%;
   top: 18px;
   z-index: 25;
-  display: flex;
+  display: none;
   align-items: center;
   gap: var(--spacing-sm);
   padding: 8px 10px;
@@ -110,6 +611,10 @@
   border-radius: 8px;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.34);
   flex-wrap: wrap;
+}
+
+.canvasToolbar > :nth-child(n + 4) {
+  display: none;
 }
 
 .toolbarSep {
@@ -171,11 +676,195 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.projectOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 92;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 94px;
+  background: rgba(0, 0, 0, 0.58);
+}
+
+.projectsPanel,
+.deleteProjectDialog {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 22px;
+  background: #222325;
+  color: #f6f7f8;
+  box-shadow: 0 26px 72px rgba(0, 0, 0, 0.58);
+}
+
+.projectsPanel {
+  width: min(460px, calc(100vw - 40px));
+  padding: 28px;
+}
+
+.projectPanelClose {
+  position: absolute;
+  right: 18px;
+  top: 18px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: #303235;
+  color: #fff;
+  cursor: pointer;
+}
+
+.projectsPanelHeader {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.projectsPanelHeader :global(.anticon) {
+  width: 48px;
+  height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: #333538;
+  color: #7ddcff;
+  font-size: 22px;
+}
+
+.projectsPanelHeader h2 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.projectsPanelHeader p {
+  margin: 4px 0 0;
+  color: #a8adb5;
+}
+
+.projectCard {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  background: #18191b;
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.projectCard:hover {
+  border-color: rgba(125, 220, 255, 0.5);
+  background: #202225;
+}
+
+.projectCardIcon {
+  width: 46px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: #333538;
+  color: #7ddcff;
+  font-size: 21px;
+}
+
+.projectCard strong,
+.projectCard small {
+  display: block;
+}
+
+.projectCard strong {
+  font-size: 18px;
+}
+
+.projectCard small {
+  margin-top: 4px;
+  color: #a8adb5;
+}
+
+.deleteProjectDialog {
+  width: min(380px, calc(100vw - 40px));
+  padding: 30px;
+  text-align: center;
+}
+
+.deleteProjectDialog > :global(.anticon) {
+  width: 58px;
+  height: 58px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  background: rgba(255, 107, 107, 0.14);
+  color: #ff7474;
+  font-size: 26px;
+}
+
+.deleteProjectDialog h2 {
+  margin: 18px 0 8px;
+  font-size: 24px;
+}
+
+.deleteProjectDialog p {
+  margin: 0;
+  color: #b9bec7;
+  line-height: 1.6;
+}
+
+.deleteProjectDialog div {
+  display: flex;
+  gap: 12px;
+  margin-top: 24px;
+}
+
+.deleteProjectDialog button {
+  height: 44px;
+  flex: 1;
+  border: 0;
+  border-radius: 12px;
+  background: #34363a;
+  color: #fff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.deleteProjectDialog button:last-child {
+  background: #ff5f5f;
+}
+
 .fullscreenPreview {
   position: fixed;
   inset: 0;
   z-index: 1000;
   background: #050607;
+  animation: previewSuckIn 0.72s cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: center center;
+}
+
+@keyframes previewSuckIn {
+  from {
+    opacity: 0.42;
+    transform: scale(0.78);
+    filter: saturate(0.85) blur(2px);
+  }
+  58% {
+    opacity: 1;
+    transform: scale(1.035);
+    filter: saturate(1.05) blur(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+    filter: saturate(1) blur(0);
+  }
 }
 
 .fullscreenClose {
@@ -202,8 +891,8 @@
 .chatDock {
   position: relative;
   width: 520px;
-  height: calc(100% - 28px);
-  margin: 14px 14px 14px 0;
+  height: calc(100% - 16px);
+  margin: 8px 14px 8px 0;
   flex-shrink: 0;
   display: grid;
   grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr);
@@ -228,24 +917,24 @@
 
 .chatCollapseBtn {
   position: absolute;
-  left: -28px;
+  left: -40px;
   top: 50%;
   z-index: 5;
-  width: 28px;
-  height: 52px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  background: #2f3033;
   color: #d8d8d8;
   cursor: pointer;
   transform: translateY(-50%);
 }
 
 .chatCollapseBtn:hover {
-  background: transparent;
+  background: #3a3b3f;
   color: #fff;
 }
 

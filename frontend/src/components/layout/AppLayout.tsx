@@ -3,9 +3,18 @@ import { Layout, Button, Space, Typography, Tooltip, Spin } from 'antd';
 import {
   CodeOutlined,
   ApartmentOutlined,
+  ApiOutlined,
+  BellOutlined,
+  DeleteOutlined,
+  FolderOpenOutlined,
+  HomeOutlined,
   PlayCircleOutlined,
-  SettingOutlined,
+  PlusCircleOutlined,
+  ShareAltOutlined,
+  ShopOutlined,
+  CrownOutlined,
   ThunderboltOutlined,
+  SettingOutlined,
   ReloadOutlined,
   CheckCircleOutlined,
   ExportOutlined,
@@ -14,6 +23,14 @@ import {
   CloseOutlined,
   DoubleLeftOutlined,
   DoubleRightOutlined,
+  TeamOutlined,
+  UserOutlined,
+  FileTextOutlined,
+  SwapOutlined,
+  SkinOutlined,
+  LogoutOutlined,
+  MoonOutlined,
+  SunOutlined,
 } from '@ant-design/icons';
 import { NodeCanvas } from '../nodes/NodeCanvas';
 import { NodeToolbox } from '../nodes/NodeToolbox';
@@ -30,12 +47,30 @@ import type { EdgeData, HistoryEntry } from '../../hooks/useAutoFix';
 import styles from './AppLayout.module.css';
 
 const { Header, Content } = Layout;
-const { Title, Text } = Typography;
+const { Text } = Typography;
 const TD_PREVIEW_BACKGROUND = '/td-preview-background.jpg';
+
+const marketPlans = [
+  { name: 'Seedance 2.0', sub: '1080P 专享', points: '45,000', price: '¥2999', bonus: '首购加赠45000', desc: '最多生成1324秒视频' },
+  { name: 'Seedance 2.0', sub: '1080P 专享', points: '60,000', price: '¥3999', bonus: '首购加赠60000', desc: '最多生成1765秒视频' },
+  { name: 'Lib Image', sub: '', points: '7,500', price: '¥499', bonus: '首购加赠7500', desc: '最多生成7500张图片', green: true },
+  { name: 'Lib Image', sub: '', points: '15,000', price: '¥999', bonus: '首购加赠15000', desc: '最多生成15000张图片', green: true },
+  { name: 'Seedance 2.0', sub: '', points: '3,000', price: '¥199', bonus: '首购加赠3000', desc: '最多生成600秒视频' },
+  { name: 'Seedance 2.0', sub: '', points: '7,500', price: '¥499', bonus: '首购加赠7500', desc: '最多生成1500秒视频' },
+  { name: 'Seedance 2.0', sub: '', points: '15,000', price: '¥999', bonus: '首购加赠15000', desc: '最多生成3000秒视频' },
+  { name: 'Seedance 2.0', sub: '', points: '30,000', price: '¥1999', bonus: '首购加赠30000', desc: '最多生成6000秒视频' },
+];
 
 type ViewMode = 'editor' | 'preview';
 
 export type { NodeData, EdgeData };
+
+function normalizeModel(model: string): string {
+  if (model === 'chatgpt5.5') return 'gpt';
+  if (model === 'gemini3.5') return 'gemini';
+  if (model === 'deepSeekV4' || model === 'deepseekv4') return 'deepseek';
+  return model;
+}
 
 function useResizeHandle(
   initialWidth: number,
@@ -81,6 +116,13 @@ export function AppLayout() {
   const [previewReferenceActive, setPreviewReferenceActive] = useState(false);
   const [fullscreenPreview, setFullscreenPreview] = useState(false);
   const [chatCollapsed, setChatCollapsed] = useState(true);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [memberMarketOpen, setMemberMarketOpen] = useState(false);
+  const [projectMenuOpen, setProjectMenuOpen] = useState(false);
+  const [projectsPanelOpen, setProjectsPanelOpen] = useState(false);
+  const [deleteProjectConfirmOpen, setDeleteProjectConfirmOpen] = useState(false);
+  const [projectTitle, setProjectTitle] = useState('未命名');
+  const projectMenuRef = useRef<HTMLDivElement>(null);
 
   const {
     phase,
@@ -105,6 +147,7 @@ export function AppLayout() {
     refreshPreview,
     restoreHistory,
     deleteHistory,
+    resetProject,
     moveToParent,
     activeBaseHistoryId,
     currentAttempt,
@@ -117,12 +160,63 @@ export function AppLayout() {
     imageToCode,
   } = useAutoFix();
 
+  useEffect(() => {
+    if (!projectMenuOpen) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (!projectMenuRef.current?.contains(event.target as Node)) {
+        setProjectMenuOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [projectMenuOpen]);
+
+  const handleReturnHome = useCallback(() => {
+    setViewMode('preview');
+    setSelectedNode(null);
+    setPreviewReferenceActive(false);
+    setFullscreenPreview(false);
+    setChatCollapsed(true);
+    setProjectMenuOpen(false);
+    setProjectsPanelOpen(false);
+  }, []);
+
+  const handleOpenProjects = useCallback(() => {
+    setProjectsPanelOpen(true);
+    setProjectMenuOpen(false);
+  }, []);
+
+  const handleCreateProject = useCallback(() => {
+    resetProject();
+    setProjectTitle('未命名');
+    setViewMode('preview');
+    setSelectedNode(null);
+    setPreviewReferenceActive(false);
+    setProjectMenuOpen(false);
+    setProjectsPanelOpen(false);
+    setDeleteProjectConfirmOpen(false);
+  }, [resetProject]);
+
+  const handleRequestDeleteProject = useCallback(() => {
+    setDeleteProjectConfirmOpen(true);
+    setProjectMenuOpen(false);
+  }, []);
+
+  const handleConfirmDeleteProject = useCallback(() => {
+    resetProject();
+    setProjectTitle('未命名');
+    setSelectedNode(null);
+    setPreviewReferenceActive(false);
+    setProjectsPanelOpen(false);
+    setDeleteProjectConfirmOpen(false);
+  }, [resetProject]);
+
   const handleGenerate = useCallback(
     (prompt: string, model: string, files: File[]) => {
       setViewMode('preview');
       setSelectedNode(null);
       setPreviewReferenceActive(false);
-      startAutoFix(prompt, model, files);
+      startAutoFix(prompt, normalizeModel(model), files);
     },
     [startAutoFix],
   );
@@ -237,8 +331,11 @@ export function AppLayout() {
   const handlePreviewNodeActivate = useCallback(() => {
     setViewMode('preview');
     setSelectedNode(null);
-    setPreviewReferenceActive(true);
-    if (finalCode) refreshPreview();
+    setPreviewReferenceActive((active) => {
+      const next = !active;
+      if (next && finalCode) refreshPreview();
+      return next;
+    });
   }, [finalCode, refreshPreview]);
 
   const handlePreviewFullscreen = useCallback(() => {
@@ -270,11 +367,123 @@ export function AppLayout() {
     <Layout className={styles.layout}>
       <Header className={styles.header}>
         <div className={styles.headerLeft}>
-          <Title level={4} className={styles.logo}>
-            <PlayCircleOutlined /> 艺术编程
-          </Title>
+          <div className={styles.projectSwitcher} ref={projectMenuRef}>
+            <button
+              type="button"
+              className={styles.logoButton}
+              onClick={() => {
+                setProjectMenuOpen((open) => !open);
+                setUserMenuOpen(false);
+                setMemberMarketOpen(false);
+              }}
+              aria-expanded={projectMenuOpen}
+              aria-label="打开项目菜单"
+            >
+              <span className={styles.libLogoMark} aria-hidden="true" />
+              <span className={styles.libLogoText}>艺术编程</span>
+              <span className={styles.projectDivider} />
+              <span className={styles.projectName}>{projectTitle}</span>
+            </button>
+            {projectMenuOpen && (
+              <div className={styles.projectMenu}>
+                <button type="button" onClick={handleReturnHome}>
+                  <HomeOutlined />
+                  <span>回到主页</span>
+                </button>
+                <button type="button" onClick={handleOpenProjects}>
+                  <FolderOpenOutlined />
+                  <span>全部项目</span>
+                </button>
+                <div className={styles.projectMenuDivider} />
+                <button type="button" onClick={handleCreateProject}>
+                  <PlusCircleOutlined />
+                  <span>创建新项目</span>
+                </button>
+                <button type="button" className={styles.projectDeleteItem} onClick={handleRequestDeleteProject}>
+                  <DeleteOutlined />
+                  <span>删除项目</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <Space className={styles.headerRight}>
+          <Tooltip title="CLI/Skills">
+            <button type="button" className={styles.headerIconBtn}>
+              <ApiOutlined />
+            </button>
+          </Tooltip>
+          <Tooltip title="发布与分享">
+            <button type="button" className={styles.headerIconBtn}>
+              <ShareAltOutlined />
+            </button>
+          </Tooltip>
+          <Tooltip title="消息通知">
+            <button type="button" className={styles.headerIconBtn}>
+              <BellOutlined />
+              <span className={styles.notifyDot} />
+            </button>
+          </Tooltip>
+          <button
+            type="button"
+            className={styles.marketBtn}
+            onClick={() => {
+              setMemberMarketOpen(true);
+              setUserMenuOpen(false);
+            }}
+          >
+            <ShopOutlined />
+            <span>会员超市</span>
+          </button>
+          <div className={styles.memberWrap}>
+            <button
+              type="button"
+              className={styles.memberBtn}
+              onClick={() => {
+                setUserMenuOpen((open) => !open);
+                setMemberMarketOpen(false);
+              }}
+            >
+              <CrownOutlined className={styles.memberCenterIcon} />
+              <span>会员中心</span>
+              <ThunderboltOutlined />
+              <span>28</span>
+              <span className={styles.avatarMark}>L</span>
+            </button>
+            {userMenuOpen && (
+              <div className={styles.userMenu}>
+                <div className={styles.userHero}>
+                  <span className={styles.userAvatar}>L</span>
+                  <div>
+                    <strong>Misistty</strong>
+                    <small>UUID ⧉  |  Access key ›</small>
+                  </div>
+                  <button type="button"><TeamOutlined /> 创建团队</button>
+                </div>
+                <div className={styles.vipCard}>
+                  <div><strong>尊享版VIP</strong><span>2026-05-28到期</span></div>
+                  <button type="button">升级会员</button>
+                  <p>活动权益： Seedream 4.5 限时5折 有效期 1天 <span>查看更多</span></p>
+                </div>
+                <div className={styles.infoCard}>
+                  <div><strong>积分余额 28 点 ›</strong><span>充值  |  设置消耗顺序</span></div>
+                  <p>通用 28 点</p>
+                </div>
+                <div className={styles.infoCard}>
+                  <div><span>存储空间</span><span>管理资产</span></div>
+                  <p><strong>13.7G</strong> /500G</p>
+                </div>
+                <button type="button" className={styles.menuRow}><UserOutlined /> 个人中心</button>
+                <button type="button" className={styles.menuRow}><FileTextOutlined /> 订阅与开发票</button>
+                <button type="button" className={styles.menuRow}>
+                  <SwapOutlined /> 模式切换
+                  <span className={styles.themeSwitch}><SunOutlined /><MoonOutlined /></span>
+                </button>
+                <button type="button" className={styles.menuRow}><SkinOutlined /> AI 水印设置</button>
+                <button type="button" className={styles.menuRow}><LogoutOutlined /> 退出登录</button>
+              </div>
+            )}
+          </div>
           <Tooltip title="节点模式">
             <Button type="text" icon={<ApartmentOutlined />} className={styles.modeBtn} />
           </Tooltip>
@@ -391,6 +600,7 @@ export function AppLayout() {
               onFullscreen: handlePreviewFullscreen,
             }}
             onImageToCode={handleImageToCode}
+            onGenerateText={handleGenerate}
             onExpandChat={() => setChatCollapsed(false)}
             onNodeSelect={handleNodeSelect}
             onGraphChange={handleGraphChange}
@@ -461,6 +671,8 @@ export function AppLayout() {
                   onImageToCode={handleImageToCode}
                   isProcessing={isProcessing}
                   hasCode={!!code}
+                  generatedCode={code}
+                  generatedNodes={nodes}
                 />
               </div>
               <div className={styles.historyColumn}>
@@ -476,6 +688,89 @@ export function AppLayout() {
           )}
         </div>
       </Content>
+
+      {memberMarketOpen && (
+        <div className={styles.marketOverlay}>
+          <div className={styles.marketModal}>
+            <button
+              type="button"
+              className={styles.marketClose}
+              onClick={() => setMemberMarketOpen(false)}
+              aria-label="关闭会员超市"
+            >
+              <CloseOutlined />
+            </button>
+            <div className={styles.marketHero}>
+              <h2>Lib 会员超市 <span>限时闪购 买一赠一</span></h2>
+              <p>会员专属模型超市，顶级模型画货必选</p>
+              <button type="button"><SwapOutlined /> 设置消耗顺序</button>
+            </div>
+            <div className={styles.marketGrid}>
+              {marketPlans.map((plan) => (
+                <div
+                  key={`${plan.name}-${plan.points}`}
+                  className={`${styles.marketPlan} ${plan.green ? styles.marketPlanGreen : ''}`}
+                >
+                  <span className={styles.planBonus}>{plan.bonus}</span>
+                  <h3>{plan.name}</h3>
+                  {plan.sub && <strong>{plan.sub}</strong>}
+                  <div className={styles.planPoints}><ThunderboltOutlined /> {plan.points}</div>
+                  <p>{plan.desc}</p>
+                  <button type="button" className={styles.planBuy}>
+                    <span>{plan.price}</span>
+                    <span>立即购买</span>
+                  </button>
+                  <small>高级版及以上会员可购买</small>
+                </div>
+              ))}
+            </div>
+            <p className={styles.marketNote}>* 模型超市内积分有效期为6个月，支付后不退不换。</p>
+          </div>
+        </div>
+      )}
+
+      {projectsPanelOpen && (
+        <div className={styles.projectOverlay} onClick={() => setProjectsPanelOpen(false)}>
+          <div className={styles.projectsPanel} onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className={styles.projectPanelClose}
+              onClick={() => setProjectsPanelOpen(false)}
+              aria-label="关闭全部项目"
+            >
+              <CloseOutlined />
+            </button>
+            <div className={styles.projectsPanelHeader}>
+              <FolderOpenOutlined />
+              <div>
+                <h2>全部项目</h2>
+                <p>当前工作区项目</p>
+              </div>
+            </div>
+            <button type="button" className={styles.projectCard} onClick={() => setProjectsPanelOpen(false)}>
+              <span className={styles.projectCardIcon}><PlayCircleOutlined /></span>
+              <span>
+                <strong>{projectTitle}</strong>
+                <small>{history.length} 条历史记录</small>
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {deleteProjectConfirmOpen && (
+        <div className={styles.projectOverlay} onClick={() => setDeleteProjectConfirmOpen(false)}>
+          <div className={styles.deleteProjectDialog} onClick={(event) => event.stopPropagation()}>
+            <DeleteOutlined />
+            <h2>删除项目？</h2>
+            <p>当前画布、代码、节点和历史记录会被清空。</p>
+            <div>
+              <button type="button" onClick={() => setDeleteProjectConfirmOpen(false)}>取消</button>
+              <button type="button" onClick={handleConfirmDeleteProject}>删除项目</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {fullscreenPreview && (
         <div className={styles.fullscreenPreview}>

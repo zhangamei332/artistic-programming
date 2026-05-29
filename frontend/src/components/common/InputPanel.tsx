@@ -1,7 +1,7 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Input, Button, Select, Tooltip, Modal, message, Upload } from 'antd';
 import {
-  SendOutlined,
+  ThunderboltOutlined,
   ToolOutlined,
   FolderOpenOutlined,
   SwapOutlined,
@@ -20,6 +20,8 @@ interface InputPanelProps {
   onImageToCode?: (imageFile: File, instruction: string) => void;
   isProcessing: boolean;
   hasCode: boolean;
+  generatedCode?: string;
+  generatedNodes?: Array<{ label: string; type: string }>;
 }
 
 const models = [
@@ -28,9 +30,24 @@ const models = [
   { value: 'deepseekv4', label: 'deepSeekV4' },
 ];
 
+const modelPointCost: Record<string, number> = {
+  'chatgpt5.5': 26,
+  'gemini3.5': 32,
+  deepseekv4: 18,
+};
+
 interface FileEntry {
   file: File;
   previewUrl: string | null;
+}
+
+interface MockChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  code?: string;
+  nodeSummary?: string;
+  pending?: boolean;
 }
 
 /** 4 fixed format-labeled upload slots */
@@ -43,10 +60,22 @@ const FIXED_SLOTS = [
 
 type SlotKey = typeof FIXED_SLOTS[number]['key'];
 
-export function InputPanel({ onGenerate, onAdjust, onCodeTransform, onImageToCode, isProcessing, hasCode }: InputPanelProps) {
+export function InputPanel({
+  onGenerate,
+  onAdjust,
+  onCodeTransform,
+  onImageToCode,
+  isProcessing,
+  hasCode,
+  generatedCode = '',
+  generatedNodes = [],
+}: InputPanelProps) {
   const [prompt, setPrompt] = useState('');
   const [adjustPrompt, setAdjustPrompt] = useState('');
   const [model, setModel] = useState('chatgpt5.5');
+  const [mockMessages, setMockMessages] = useState<MockChatMessage[]>([]);
+  const [isMockThinking, setIsMockThinking] = useState(false);
+  const [activeAssistantId, setActiveAssistantId] = useState<string | null>(null);
   const [slotFiles, setSlotFiles] = useState<Record<SlotKey, FileEntry | null>>({
     svg: null, txt: null, obj: null, mp4: null,
   });
@@ -63,6 +92,28 @@ export function InputPanel({ onGenerate, onAdjust, onCodeTransform, onImageToCod
   const [imgToCodeImage, setImgToCodeImage] = useState<File | null>(null);
   const [imgToCodePreview, setImgToCodePreview] = useState<string | null>(null);
   const [imgToCodeInstruction, setImgToCodeInstruction] = useState('');
+  const lastDisplayedCodeRef = useRef('');
+
+  useEffect(() => {
+    if (!activeAssistantId || !generatedCode || generatedCode === lastDisplayedCodeRef.current) return;
+    lastDisplayedCodeRef.current = generatedCode;
+    const nodeSummary = generatedNodes.length > 0
+      ? `Generated ${generatedNodes.length} nodes from code: ${generatedNodes.slice(0, 6).map((node) => node.label || node.type).join(', ')}`
+      : 'Code generated. The canvas will sync from @node/@connect annotations.';
+    setMockMessages((prev) => prev.map((item) => (
+      item.id === activeAssistantId
+        ? {
+          ...item,
+          content: 'Code generated and canvas nodes synced.',
+          code: generatedCode,
+          nodeSummary,
+          pending: false,
+        }
+        : item
+    )));
+    setIsMockThinking(false);
+    setActiveAssistantId(null);
+  }, [activeAssistantId, generatedCode, generatedNodes]);
 
   // ---- slot file handlers ----
 
@@ -173,8 +224,24 @@ export function InputPanel({ onGenerate, onAdjust, onCodeTransform, onImageToCod
   // ---- generate / adjust / transform ----
 
   const handleGenerate = () => {
-    if (!prompt.trim() || isProcessing) return;
-    onGenerate(prompt, model, collectAllFiles());
+    const trimmed = prompt.trim();
+    if (!trimmed || isProcessing || isMockThinking) return;
+    if (model === 'chatgpt5.5') {
+      const now = Date.now();
+      const assistantId = `assistant_${now}`;
+      lastDisplayedCodeRef.current = generatedCode;
+      setMockMessages((prev) => [
+        ...prev,
+        { id: `user_${now}`, role: 'user', content: trimmed },
+        { id: assistantId, role: 'assistant', content: 'chatgpt5.5 is generating Three.js + GSAP code and parsing nodes...', pending: true },
+      ]);
+      setPrompt('');
+      setIsMockThinking(true);
+      setActiveAssistantId(assistantId);
+      onGenerate(trimmed, model, collectAllFiles());
+      return;
+    }
+    onGenerate(trimmed, model, collectAllFiles());
   };
 
   const handleAdjust = () => {
@@ -421,6 +488,22 @@ export function InputPanel({ onGenerate, onAdjust, onCodeTransform, onImageToCod
       </Modal>
 
       {/* 生成行 */}
+      {mockMessages.length > 0 && (
+        <div className={styles.mockChatLog}>
+          {mockMessages.slice(-6).map((item) => (
+            <div
+              key={item.id}
+              className={`${styles.mockChatBubble} ${item.role === 'user' ? styles.mockChatUser : styles.mockChatAssistant}`}
+            >
+              <span>{item.content}</span>
+              {item.nodeSummary && <small>{item.nodeSummary}</small>}
+              {item.code && <pre>{item.code}</pre>}
+              {item.pending && <i />}
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className={styles.inputRow}>
         <TextArea
           value={prompt}
@@ -436,24 +519,29 @@ export function InputPanel({ onGenerate, onAdjust, onCodeTransform, onImageToCod
           }}
         />
 
-        <Select
-          value={model}
-          onChange={setModel}
-          options={models}
-          size="middle"
-          className={styles.modelSelect}
-        />
-
-        <Button
-          type="primary"
-          icon={<SendOutlined />}
-          onClick={handleGenerate}
-          loading={isProcessing}
-          disabled={!prompt.trim()}
-          className={styles.generateBtn}
-        >
-          生成
-        </Button>
+        <div className={styles.generateControls}>
+          <Select
+            value={model}
+            onChange={setModel}
+            options={models}
+            size="middle"
+            className={styles.modelSelect}
+          />
+          <div className={styles.pointCost} title="本次生成预计消耗积分">
+            <ThunderboltOutlined />
+            <span>{modelPointCost[model]}</span>
+          </div>
+          <Button
+            type="primary"
+            onClick={handleGenerate}
+            loading={isProcessing || isMockThinking}
+            disabled={isProcessing || isMockThinking}
+            className={styles.generateBtn}
+            aria-label="发送生成指令"
+          >
+            ↑
+          </Button>
+        </div>
       </div>
 
       {/* 调整行 */}
