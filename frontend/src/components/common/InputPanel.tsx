@@ -1,13 +1,13 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Input, Button, Select, Tooltip, Modal, message, Upload } from 'antd';
 import {
   ThunderboltOutlined,
-  ToolOutlined,
   FolderOpenOutlined,
   SwapOutlined,
   FileImageOutlined,
   InboxOutlined,
 } from '@ant-design/icons';
+import type { GenerationRequestEntry } from '../../hooks/useAutoFix';
 import styles from './InputPanel.module.css';
 
 const { TextArea } = Input;
@@ -17,37 +17,29 @@ interface InputPanelProps {
   onGenerate: (prompt: string, model: string, files: File[]) => void;
   onAdjust?: (prompt: string) => void;
   onCodeTransform?: (sourceCode: string, instruction: string) => void;
-  onImageToCode?: (imageFile: File, instruction: string) => void;
+  onImageToCode?: (imageFile: File, instruction: string, model?: string) => void;
   isProcessing: boolean;
   hasCode: boolean;
-  generatedCode?: string;
-  generatedNodes?: Array<{ label: string; type: string }>;
+  requestLog?: GenerationRequestEntry[];
 }
 
 const models = [
+  { value: 'deepseekv4', label: 'deepSeekV4' },
   { value: 'chatgpt5.5', label: 'chatgpt5.5' },
   { value: 'gemini3.5', label: 'gemini3.5' },
-  { value: 'deepseekv4', label: 'deepSeekV4' },
+  { value: 'mimo-v2.5-pro', label: 'mimo-v2.5-pro' },
 ];
 
 const modelPointCost: Record<string, number> = {
   'chatgpt5.5': 26,
   'gemini3.5': 32,
+  'mimo-v2.5-pro': 26,
   deepseekv4: 18,
 };
 
 interface FileEntry {
   file: File;
   previewUrl: string | null;
-}
-
-interface MockChatMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  code?: string;
-  nodeSummary?: string;
-  pending?: boolean;
 }
 
 /** 4 fixed format-labeled upload slots */
@@ -67,19 +59,16 @@ export function InputPanel({
   onImageToCode,
   isProcessing,
   hasCode,
-  generatedCode = '',
-  generatedNodes = [],
+  requestLog = [],
 }: InputPanelProps) {
   const [prompt, setPrompt] = useState('');
   const [adjustPrompt, setAdjustPrompt] = useState('');
-  const [model, setModel] = useState('chatgpt5.5');
-  const [mockMessages, setMockMessages] = useState<MockChatMessage[]>([]);
-  const [isMockThinking, setIsMockThinking] = useState(false);
-  const [activeAssistantId, setActiveAssistantId] = useState<string | null>(null);
+  const [model, setModel] = useState('deepseekv4');
   const [slotFiles, setSlotFiles] = useState<Record<SlotKey, FileEntry | null>>({
     svg: null, txt: null, obj: null, mp4: null,
   });
   const [dragOver, setDragOver] = useState(false);
+  const [expandedRequestId, setExpandedRequestId] = useState<string | null>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
   // code-transform modal
@@ -92,34 +81,11 @@ export function InputPanel({
   const [imgToCodeImage, setImgToCodeImage] = useState<File | null>(null);
   const [imgToCodePreview, setImgToCodePreview] = useState<string | null>(null);
   const [imgToCodeInstruction, setImgToCodeInstruction] = useState('');
-  const lastDisplayedCodeRef = useRef('');
-
-  useEffect(() => {
-    if (!activeAssistantId || !generatedCode || generatedCode === lastDisplayedCodeRef.current) return;
-    lastDisplayedCodeRef.current = generatedCode;
-    const nodeSummary = generatedNodes.length > 0
-      ? `Generated ${generatedNodes.length} nodes from code: ${generatedNodes.slice(0, 6).map((node) => node.label || node.type).join(', ')}`
-      : 'Code generated. The canvas will sync from @node/@connect annotations.';
-    setMockMessages((prev) => prev.map((item) => (
-      item.id === activeAssistantId
-        ? {
-          ...item,
-          content: 'Code generated and canvas nodes synced.',
-          code: generatedCode,
-          nodeSummary,
-          pending: false,
-        }
-        : item
-    )));
-    setIsMockThinking(false);
-    setActiveAssistantId(null);
-  }, [activeAssistantId, generatedCode, generatedNodes]);
 
   // ---- slot file handlers ----
 
   const setSlotFile = useCallback((key: SlotKey, entry: FileEntry | null) => {
     setSlotFiles((prev) => {
-      // revoke old preview URL
       if (prev[key]?.previewUrl) URL.revokeObjectURL(prev[key].previewUrl!);
       return { ...prev, [key]: entry };
     });
@@ -160,7 +126,6 @@ export function InputPanel({
     setSlotFile(key, null);
   }, [setSlotFile]);
 
-  // collect all slot files for generation
   const collectAllFiles = useCallback((): File[] => {
     const result: File[] = [];
     for (const key of Object.keys(slotFiles) as SlotKey[]) {
@@ -169,7 +134,7 @@ export function InputPanel({
     return result;
   }, [slotFiles]);
 
-  // ---- panel drag & drop (for general file area) ----
+  // ---- panel drag & drop ----
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -188,7 +153,6 @@ export function InputPanel({
     e.stopPropagation();
     setDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      // try to match dropped files to slots by extension
       for (const f of Array.from(e.dataTransfer.files)) {
         const ext = '.' + f.name.split('.').pop()?.toLowerCase();
         for (const slot of FIXED_SLOTS) {
@@ -225,22 +189,8 @@ export function InputPanel({
 
   const handleGenerate = () => {
     const trimmed = prompt.trim();
-    if (!trimmed || isProcessing || isMockThinking) return;
-    if (model === 'chatgpt5.5') {
-      const now = Date.now();
-      const assistantId = `assistant_${now}`;
-      lastDisplayedCodeRef.current = generatedCode;
-      setMockMessages((prev) => [
-        ...prev,
-        { id: `user_${now}`, role: 'user', content: trimmed },
-        { id: assistantId, role: 'assistant', content: 'chatgpt5.5 is generating Three.js + GSAP code and parsing nodes...', pending: true },
-      ]);
-      setPrompt('');
-      setIsMockThinking(true);
-      setActiveAssistantId(assistantId);
-      onGenerate(trimmed, model, collectAllFiles());
-      return;
-    }
+    if (!trimmed || isProcessing) return;
+    setPrompt('');
     onGenerate(trimmed, model, collectAllFiles());
   };
 
@@ -262,7 +212,7 @@ export function InputPanel({
 
   const handleImgToCode = () => {
     if (!imgToCodeImage || !imgToCodeInstruction.trim() || isProcessing || !onImageToCode) return;
-    onImageToCode(imgToCodeImage, imgToCodeInstruction.trim());
+    onImageToCode(imgToCodeImage, imgToCodeInstruction.trim(), model);
     setImgToCodeOpen(false);
     setImgToCodeImage(null);
     if (imgToCodePreview) { URL.revokeObjectURL(imgToCodePreview); }
@@ -277,10 +227,16 @@ export function InputPanel({
     }
     setImgToCodeImage(file);
     setImgToCodePreview(URL.createObjectURL(file));
-    return false; // prevent default upload behavior
+    return false;
   }, []);
 
   const hasAnyFile = Object.values(slotFiles).some((f) => f !== null);
+
+  // API 进度提示文字
+  const formatRequestTime = useCallback((ts: number) => {
+    const d = new Date(ts);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  }, []);
 
   return (
     <div
@@ -289,6 +245,34 @@ export function InputPanel({
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {requestLog.length > 0 && (
+        <div className={styles.requestList}>
+          {requestLog.map((item) => {
+            const expanded = expandedRequestId === item.id;
+            return (
+              <div
+                key={item.id}
+                className={`${styles.requestCard} ${item.status === 'active' ? styles.requestCardActive : ''} ${item.status === 'error' ? styles.requestCardError : ''}`}
+                onClick={() => setExpandedRequestId((current) => (current === item.id ? null : item.id))}
+              >
+                <div className={styles.requestTop}>
+                  <span>{item.model}</span>
+                  <span>{formatRequestTime(item.timestamp)}</span>
+                </div>
+                <div className={styles.requestMessage}>{item.message}</div>
+                <div className={styles.requestMeta}>
+                  <span>{item.code.length} 字符</span>
+                  <span>{expanded ? '收起代码' : '查看代码'}</span>
+                </div>
+                {expanded && (
+                  <pre className={styles.requestCode}>{item.code || '正在等待代码返回...'}</pre>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
       {/* 4 fixed format-labeled upload slots */}
       <div className={styles.fileSlots}>
         {FIXED_SLOTS.map((slot) => {
@@ -391,6 +375,14 @@ export function InputPanel({
           setImgToCodePreview(null);
           setImgToCodeInstruction('');
         }}
+        afterOpenChange={(open) => {
+          if (!open) {
+            setImgToCodeImage(null);
+            if (imgToCodePreview) { URL.revokeObjectURL(imgToCodePreview); }
+            setImgToCodePreview(null);
+            setImgToCodeInstruction('');
+          }
+        }}
         onOk={handleImgToCode}
         okText="开始生成"
         cancelText="取消"
@@ -488,28 +480,11 @@ export function InputPanel({
       </Modal>
 
       {/* 生成行 */}
-      {mockMessages.length > 0 && (
-        <div className={styles.mockChatLog}>
-          {mockMessages.slice(-6).map((item) => (
-            <div
-              key={item.id}
-              className={`${styles.mockChatBubble} ${item.role === 'user' ? styles.mockChatUser : styles.mockChatAssistant}`}
-            >
-              <span>{item.content}</span>
-              {item.nodeSummary && <small>{item.nodeSummary}</small>}
-              {item.code && <pre>{item.code}</pre>}
-              {item.pending && <i />}
-            </div>
-          ))}
-        </div>
-      )}
-
       <div className={styles.inputRow}>
         <TextArea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
           placeholder="描述你想创作的艺术效果，例如：一个旋转的彩色立方体，背景是星空..."
-          autoSize={{ minRows: 1, maxRows: 3 }}
           className={styles.textInput}
           onPressEnter={(e) => {
             if (!e.shiftKey) {
@@ -534,8 +509,8 @@ export function InputPanel({
           <Button
             type="primary"
             onClick={handleGenerate}
-            loading={isProcessing || isMockThinking}
-            disabled={isProcessing || isMockThinking}
+            loading={isProcessing}
+            disabled={isProcessing}
             className={styles.generateBtn}
             aria-label="发送生成指令"
           >
@@ -543,35 +518,6 @@ export function InputPanel({
           </Button>
         </div>
       </div>
-
-      {/* 调整行 */}
-      {hasCode && onAdjust && (
-        <div className={styles.adjustRow}>
-          <TextArea
-            value={adjustPrompt}
-            onChange={(e) => setAdjustPrompt(e.target.value)}
-            placeholder="调整指令，例如：把立方体变成红色、加速旋转、添加粒子效果..."
-            autoSize={{ minRows: 1, maxRows: 2 }}
-            className={styles.adjustInput}
-            onPressEnter={(e) => {
-              if (!e.shiftKey) {
-                e.preventDefault();
-                handleAdjust();
-              }
-            }}
-          />
-          <Button
-            type="default"
-            icon={<ToolOutlined />}
-            onClick={handleAdjust}
-            loading={isProcessing}
-            disabled={!adjustPrompt.trim()}
-            className={styles.adjustBtn}
-          >
-            调整
-          </Button>
-        </div>
-      )}
     </div>
   );
 }

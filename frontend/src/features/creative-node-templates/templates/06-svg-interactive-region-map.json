@@ -1,0 +1,171 @@
+{
+  "id": "svg-interactive-region-map",
+  "version": "1.1.0",
+  "name": "SVG区域互动地图",
+  "nameEN": "SVG Interactive Region Map",
+  "category": "svg",
+  "description": "将SVG地图拆分为区域，随机、顺序或按数据选择区域并执行填色、发光、粒子和消失动画。",
+  "tags": [
+    "SVG",
+    "地图",
+    "区域",
+    "交互"
+  ],
+  "difficulty": "intermediate",
+  "performance": "medium",
+  "graph": {
+    "group": {
+      "title": "SVG区域互动地图",
+      "width": 1240,
+      "height": 540,
+      "collapsedByDefault": false,
+      "layoutOnly": true,
+      "renderFrame": false
+    },
+    "nodes": [
+      {
+        "id": "svg",
+        "type": "source.svg",
+        "label": "SVG地图",
+        "position": {
+          "x": 40,
+          "y": 160
+        },
+        "params": {},
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "regions",
+        "type": "analysis.svg-regions",
+        "label": "区域分组",
+        "position": {
+          "x": 310,
+          "y": 130
+        },
+        "params": {
+          "groupBy": "id"
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "animation",
+        "type": "modifier.region-animation",
+        "label": "区域动画",
+        "position": {
+          "x": 610,
+          "y": 120
+        },
+        "params": {
+          "selectionMode": "random-one",
+          "animationType": "edge-glow",
+          "duration": 1.2,
+          "color": "#ffd45e"
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "renderer",
+        "type": "renderer.svg",
+        "label": "SVG渲染",
+        "position": {
+          "x": 940,
+          "y": 160
+        },
+        "params": {},
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "svg",
+        "sourcePort": "svg",
+        "target": "regions",
+        "targetPort": "svg",
+        "label": "地图 → 区域",
+        "mappings": [
+          {
+            "id": "m1",
+            "mode": "direct",
+            "input": "svg",
+            "output": "svg",
+            "label": "SVG → 区域分组",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "source": "regions",
+        "sourcePort": "regions",
+        "target": "animation",
+        "targetPort": "regions",
+        "label": "区域 → 动画",
+        "mappings": [
+          {
+            "id": "m2",
+            "mode": "direct",
+            "input": "regions",
+            "output": "regions",
+            "label": "区域列表 → 区域动画",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e3",
+        "source": "animation",
+        "sourcePort": "svg",
+        "target": "renderer",
+        "targetPort": "svg",
+        "label": "动画地图 → 输出",
+        "mappings": [
+          {
+            "id": "m3",
+            "mode": "direct",
+            "input": "svg",
+            "output": "svg",
+            "label": "SVG → 渲染",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "insertion": {
+    "surface": "host-node-canvas",
+    "renderGroupFrame": false,
+    "useHostNodeComponents": true,
+    "useHostEdgeComponent": true,
+    "useHostInspector": true,
+    "reuseExistingSystemNodes": true,
+    "insertAsSingleUndoTransaction": true
+  }
+}

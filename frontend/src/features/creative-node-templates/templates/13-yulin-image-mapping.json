@@ -1,0 +1,121 @@
+{
+  "id": "personal-yulin-image-mapping-template",
+  "version": "1.0.15",
+  "name": "图像映射模板",
+  "nameEN": "Yulin Image Mapping Template",
+  "category": "personal",
+  "description": "由 Processing particle_picture.pde 转换：中间节点为无图白色粒子肌理，最终节点为 02.png 图像采样映射预览。",
+  "tags": ["personal", "grouped", "processing", "image-mapping"],
+  "difficulty": "intermediate",
+  "performance": "high",
+  "insertion": {
+    "surface": "host-node-canvas",
+    "renderGroupFrame": false,
+    "useHostNodeComponents": true,
+    "useHostEdgeComponent": true,
+    "useHostInspector": true,
+    "reuseExistingSystemNodes": false,
+    "insertAsSingleUndoTransaction": true
+  },
+  "graph": {
+    "group": {
+      "title": "图像映射模板",
+      "width": 1360,
+      "height": 520,
+      "layoutOnly": true,
+      "renderFrame": false
+    },
+    "nodes": [
+      {
+        "id": "source-image-02",
+        "type": "imageSource",
+        "label": "图像节点：02.png",
+        "position": { "x": 0, "y": 90 },
+        "params": {
+          "previewUrl": "/template-assets/yulin-particle-picture-02.png",
+          "sourcePath": "E:/榆林展览馆/设计文件/Processing编程设计文件/flower particle_picture/particle_picture/data/02.png",
+          "fileName": "02.png"
+        }
+      },
+      {
+        "id": "processing-texture-preview",
+        "type": "preview",
+        "label": "Processing 肌理图层预览",
+        "position": { "x": 470, "y": 0 },
+        "params": {
+          "code": "import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';\nawait new Promise((resolve, reject) => {\n  if (window.runYulinParticlePicture) { resolve(); return; }\n  const script = document.createElement('script');\n  script.src = '/template-assets/yulin-particle-picture-runtime.js?v=1.0.15';\n  script.onload = resolve;\n  script.onerror = () => reject(new Error('Yulin particle runtime load failed'));\n  document.head.appendChild(script);\n});\nwindow.runYulinParticlePicture({ THREE, mode: 'unmapped' });",
+          "referenceBackgroundUrl": "",
+          "processingSource": "particle_picture.pde",
+          "density": 18,
+          "originalDensity": 8,
+          "depthAmt": 300,
+          "noiseScale": 0.01
+        }
+      },
+      {
+        "id": "mapped-preview",
+        "type": "preview",
+        "label": "完成映射预览节点",
+        "position": { "x": 900, "y": 90 },
+        "params": {
+          "code": "import * as THREE from 'https://unpkg.com/three@0.160.0/build/three.module.js';\nawait new Promise((resolve, reject) => {\n  if (window.runYulinParticlePicture) { resolve(); return; }\n  const script = document.createElement('script');\n  script.src = '/template-assets/yulin-particle-picture-runtime.js?v=1.0.15';\n  script.onload = resolve;\n  script.onerror = () => reject(new Error('Yulin particle runtime load failed'));\n  document.head.appendChild(script);\n});\nwindow.runYulinParticlePicture({ THREE, mode: 'mapped', imageUrl: '/template-assets/yulin-particle-picture-02.png?v=1.0.15' });",
+          "referenceBackgroundUrl": "/template-assets/yulin-particle-picture-02.png",
+          "mergeInputs": ["图像节点", "Processing 肌理图层预览"]
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e-source-texture",
+        "source": "source-image-02",
+        "sourcePort": "out",
+        "target": "processing-texture-preview",
+        "targetPort": "in",
+        "label": "图像采样",
+        "mappings": [
+          {
+            "id": "m-source-texture",
+            "mode": "direct",
+            "input": "image",
+            "output": "particleTexture",
+            "label": "图像采样"
+          }
+        ]
+      },
+      {
+        "id": "e-source-mapped",
+        "source": "source-image-02",
+        "sourcePort": "out",
+        "target": "mapped-preview",
+        "targetPort": "image",
+        "label": "原图输入",
+        "mappings": [
+          {
+            "id": "m-source-mapped",
+            "mode": "direct",
+            "input": "image",
+            "output": "mappedImage",
+            "label": "原图输入"
+          }
+        ]
+      },
+      {
+        "id": "e-texture-mapped",
+        "source": "processing-texture-preview",
+        "sourcePort": "out",
+        "target": "mapped-preview",
+        "targetPort": "texture",
+        "label": "肌理图层",
+        "mappings": [
+          {
+            "id": "m-texture-mapped",
+            "mode": "direct",
+            "input": "particleTexture",
+            "output": "mappedPreview",
+            "label": "肌理图层"
+          }
+        ]
+      }
+    ]
+  }
+}

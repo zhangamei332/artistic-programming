@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { Layout, Button, Space, Typography, Tooltip, Spin } from 'antd';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { Layout, Button, Space, Typography, Tooltip } from 'antd';
 import {
   CodeOutlined,
   ApartmentOutlined,
@@ -16,12 +16,10 @@ import {
   ThunderboltOutlined,
   SettingOutlined,
   ReloadOutlined,
-  CheckCircleOutlined,
   ExportOutlined,
   SaveOutlined,
   DownloadOutlined,
   CloseOutlined,
-  DoubleLeftOutlined,
   DoubleRightOutlined,
   TeamOutlined,
   UserOutlined,
@@ -36,19 +34,25 @@ import { NodeCanvas } from '../nodes/NodeCanvas';
 import { NodeToolbox } from '../nodes/NodeToolbox';
 import { CodeEditor } from '../editor/CodeEditor';
 import { PreviewWindow, exportStandaloneHTML } from '../preview/PreviewWindow';
-import { VerifierIframe } from '../preview/VerifierIframe';
 import { InputPanel } from '../common/InputPanel';
 import { CorrectionLog } from '../common/CorrectionLog';
 import { ParamPanel } from '../common/ParamPanel';
-import { HistoryPanel } from '../common/HistoryPanel';
 import { useAutoFix } from '../../hooks/useAutoFix';
 import type { NodeData } from '../../hooks/useAutoFix';
-import type { EdgeData, HistoryEntry } from '../../hooks/useAutoFix';
+import type { EdgeData } from '../../hooks/useAutoFix';
+import {
+  CanvasSnapshotFrameSource,
+  createDefaultVideoExportDocument,
+  VideoExportController,
+  VideoExportDialog,
+  type VideoExportDocument,
+  type VideoExportProgress,
+} from '../../video-export-v13';
 import styles from './AppLayout.module.css';
 
 const { Header, Content } = Layout;
 const { Text } = Typography;
-const TD_PREVIEW_BACKGROUND = '/td-preview-background.jpg';
+const TD_PREVIEW_BACKGROUND = '';
 
 const marketPlans = [
   { name: 'Seedance 2.0', sub: '1080P 专享', points: '45,000', price: '¥2999', bonus: '首购加赠45000', desc: '最多生成1324秒视频' },
@@ -62,14 +66,34 @@ const marketPlans = [
 ];
 
 type ViewMode = 'editor' | 'preview';
+type PageMode = 'home' | 'workspace';
 
 export type { NodeData, EdgeData };
 
 function normalizeModel(model: string): string {
-  if (model === 'chatgpt5.5') return 'gpt';
-  if (model === 'gemini3.5') return 'gemini';
-  if (model === 'deepSeekV4' || model === 'deepseekv4') return 'deepseek';
+  // Model names are now passed through directly to match backend zod schema
+  // Supported: 'deepseekv4', 'chatgpt5.5', 'gemini3.5', 'mimo-v2.5-pro'
+  if (model === 'chatgpt5.5') return 'chatgpt5.5';
+  if (model === 'gemini3.5') return 'gemini3.5';
+  if (model === 'mimo-v2.5-pro') return 'mimo-v2.5-pro';
+  if (model === 'deepSeekV4' || model === 'deepseekv4' || model === 'deepseek') return 'deepseekv4';
   return model;
+}
+
+async function dataUrlToCanvas(dataUrl: string): Promise<HTMLCanvasElement> {
+  const image = new Image();
+  image.src = dataUrl;
+  await new Promise<void>((resolve, reject) => {
+    image.onload = () => resolve();
+    image.onerror = () => reject(new Error('预览帧加载失败'));
+  });
+  const canvas = document.createElement('canvas');
+  canvas.width = image.naturalWidth || image.width || 1;
+  canvas.height = image.naturalHeight || image.height || 1;
+  const context = canvas.getContext('2d');
+  if (!context) throw new Error('Canvas 2D 不可用');
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  return canvas;
 }
 
 function useResizeHandle(
@@ -91,7 +115,7 @@ function useResizeHandle(
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (!dragging.current) return;
-      const delta = e.clientX - dragging.current.startX;
+      const delta = dragging.current.startX - e.clientX;
       const newWidth = Math.max(minWidth, Math.min(maxWidth, dragging.current.startW + delta));
       setWidth(newWidth);
     };
@@ -110,19 +134,117 @@ function useResizeHandle(
   return [width, onMouseDown, active];
 }
 
+const homeHeroCards = [
+  {
+    title: 'AI-Co-Art 导演台',
+    sub: '节点、代码与预览串成连续创作流',
+    image: 'https://images.unsplash.com/photo-1519608487953-e999c86e7455?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    title: '共创计划',
+    sub: '文本、图像、数据和交互一起进入画布',
+    image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80',
+  },
+  {
+    title: '实时视觉实验',
+    sub: 'Three.js + GSAP 生成可运行作品',
+    image: 'https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=900&q=80',
+  },
+];
+
+const homeGalleryCards = [
+  { title: '粒子文字海报', author: 'Tassi', image: 'https://images.unsplash.com/photo-1541701494587-cb58502866ab?auto=format&fit=crop&w=640&q=80' },
+  { title: '镜头路径森林', author: 'Forest', image: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=640&q=80' },
+  { title: '交互角色草图', author: 'yomi', image: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=640&q=80' },
+  { title: '数据驱动舞台', author: 'Zeno', image: 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=640&q=80' },
+  { title: '声音节奏球体', author: 'ddjiva', image: 'https://images.unsplash.com/photo-1516280440614-37939bbacd81?auto=format&fit=crop&w=640&q=80' },
+  { title: '手势骨骼光场', author: 'YY', image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=640&q=80' },
+];
+
+function HomePage({ onStart }: { onStart: () => void }) {
+  return (
+    <main className={styles.homePage}>
+      <section className={styles.homeHero}>
+        <div className={styles.homeCarousel}>
+          {homeHeroCards.map((card, index) => (
+            <article key={card.title} className={`${styles.homeHeroCard} ${index === 1 ? styles.homeHeroCardActive : ''}`}>
+              <img src={card.image} alt="" />
+              <div>
+                <strong>{card.title}</strong>
+                <span>{card.sub}</span>
+              </div>
+            </article>
+          ))}
+        </div>
+        <div className={styles.homeDots}>
+          <span />
+          <span className={styles.homeDotActive} />
+          <span />
+          <span />
+        </div>
+        <div className={styles.homeActions}>
+          <button type="button" onClick={onStart}>
+            <PlusCircleOutlined />
+            <span>开始创作</span>
+          </button>
+          <button type="button" onClick={onStart}>
+            <PlayCircleOutlined />
+            <span>打开节点画布</span>
+          </button>
+        </div>
+      </section>
+
+      <section className={styles.homeGallery}>
+        <div className={styles.homeGalleryHeader}>
+          <h2>AI-Co-Art Show</h2>
+          <div className={styles.homeSearch}>请输入搜索内容</div>
+        </div>
+        <div className={styles.homeFilters}>
+          {['全部', 'Three.js', 'GSAP', '交互节点', '数据视觉', '艺术实验'].map((item) => (
+            <button key={item} type="button">{item}</button>
+          ))}
+        </div>
+        <div className={styles.homeGrid}>
+          {homeGalleryCards.map((card) => (
+            <article key={card.title} className={styles.homeWorkCard}>
+              <img src={card.image} alt="" />
+              <strong>{card.title}</strong>
+              <span>{card.author}</span>
+            </article>
+          ))}
+        </div>
+      </section>
+    </main>
+  );
+}
+
 export function AppLayout() {
+  const [pageMode, setPageMode] = useState<PageMode>('workspace');
   const [viewMode, setViewMode] = useState<ViewMode>('preview');
-  const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
   const [previewReferenceActive, setPreviewReferenceActive] = useState(false);
   const [fullscreenPreview, setFullscreenPreview] = useState(false);
-  const [chatCollapsed, setChatCollapsed] = useState(true);
+  const [adminMode, setAdminMode] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [memberMarketOpen, setMemberMarketOpen] = useState(false);
   const [projectMenuOpen, setProjectMenuOpen] = useState(false);
   const [projectsPanelOpen, setProjectsPanelOpen] = useState(false);
   const [deleteProjectConfirmOpen, setDeleteProjectConfirmOpen] = useState(false);
   const [projectTitle, setProjectTitle] = useState('未命名');
+  const [selectedNode, setSelectedNode] = useState<NodeData | null>(null);
+  const [selectedNodes, setSelectedNodes] = useState<NodeData[]>([]);
+  const [inspectorCollapsed, setInspectorCollapsed] = useState(true);
+  const [videoExportOpen, setVideoExportOpen] = useState(false);
+  const [videoExportDocument, setVideoExportDocument] = useState<VideoExportDocument>(() => createDefaultVideoExportDocument());
+  const [videoExportProgress, setVideoExportProgress] = useState<VideoExportProgress | undefined>();
+  const [videoCaptureRequestId, setVideoCaptureRequestId] = useState(0);
+  const [videoCapture, setVideoCapture] = useState<string | null>(null);
   const projectMenuRef = useRef<HTMLDivElement>(null);
+  const videoExportControllerRef = useRef<VideoExportController | null>(null);
+  const [inspectorWidth, onInspectorResizeStart, inspectorResizing] = useResizeHandle(
+    Number(localStorage.getItem('context-inspector-width')) || 340,
+    280,
+    480,
+  );
 
   const {
     phase,
@@ -131,34 +253,38 @@ export function AppLayout() {
     finalNodes,
     finalEdges,
     correctionLog,
-    verificationCode,
-    verificationKey,
-    previewKey,
-    generationKey,
     adjustExplanation,
+    previewKey,
+    requestLog,
     history,
     startAutoFix,
-    onVerifierError,
-    onVerifierSuccess,
+    startPreviewTask,
+    startPreviewAdjustmentTask,
     updateNodeParams,
-    regenerateFromParams,
     saveNodeParamsOnly,
+    regenerateFromParams,
     adjustCode,
     refreshPreview,
-    restoreHistory,
-    deleteHistory,
     resetProject,
-    moveToParent,
-    activeBaseHistoryId,
-    currentAttempt,
-    maxAttempts,
     syncFromCanvas,
-    addEdge,
-    removeEdge,
-    generateFromGraph,
     transformCode,
     imageToCode,
+    generationKey,
   } = useAutoFix();
+
+  useEffect(() => {
+    localStorage.setItem('context-inspector-width', String(inspectorWidth));
+  }, [inspectorWidth]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'F12') return;
+      event.preventDefault();
+      setAdminMode((active) => !active);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   useEffect(() => {
     if (!projectMenuOpen) return;
@@ -172,13 +298,18 @@ export function AppLayout() {
   }, [projectMenuOpen]);
 
   const handleReturnHome = useCallback(() => {
+    setPageMode('home');
     setViewMode('preview');
-    setSelectedNode(null);
     setPreviewReferenceActive(false);
     setFullscreenPreview(false);
-    setChatCollapsed(true);
+    setAdminMode(false);
     setProjectMenuOpen(false);
     setProjectsPanelOpen(false);
+  }, []);
+
+  const handleStartCreation = useCallback(() => {
+    setPageMode('workspace');
+    setViewMode('preview');
   }, []);
 
   const handleOpenProjects = useCallback(() => {
@@ -189,8 +320,8 @@ export function AppLayout() {
   const handleCreateProject = useCallback(() => {
     resetProject();
     setProjectTitle('未命名');
+    setPageMode('workspace');
     setViewMode('preview');
-    setSelectedNode(null);
     setPreviewReferenceActive(false);
     setProjectMenuOpen(false);
     setProjectsPanelOpen(false);
@@ -205,7 +336,6 @@ export function AppLayout() {
   const handleConfirmDeleteProject = useCallback(() => {
     resetProject();
     setProjectTitle('未命名');
-    setSelectedNode(null);
     setPreviewReferenceActive(false);
     setProjectsPanelOpen(false);
     setDeleteProjectConfirmOpen(false);
@@ -213,16 +343,31 @@ export function AppLayout() {
 
   const handleGenerate = useCallback(
     (prompt: string, model: string, files: File[]) => {
+      setPageMode('workspace');
       setViewMode('preview');
-      setSelectedNode(null);
-      setPreviewReferenceActive(false);
+      setPreviewReferenceActive(true);
       startAutoFix(prompt, normalizeModel(model), files);
     },
     [startAutoFix],
   );
 
+  const handleNodeGenerate = useCallback(
+    (prompt: string, model: string, files: File[], apiPrompt?: string, baseCode?: string) => {
+      setPageMode('workspace');
+      setViewMode('preview');
+      setPreviewReferenceActive(false);
+      const normalizedModel = normalizeModel(model);
+      if (baseCode?.trim()) {
+        return startPreviewAdjustmentTask(baseCode, apiPrompt || prompt, normalizedModel);
+      }
+      return startPreviewTask(apiPrompt || prompt, normalizedModel, files);
+    },
+    [startPreviewAdjustmentTask, startPreviewTask],
+  );
+
   const handleAdjust = useCallback(
     (prompt: string) => {
+      setPageMode('workspace');
       setViewMode('preview');
       adjustCode(prompt);
     },
@@ -231,35 +376,28 @@ export function AppLayout() {
 
   const handleCodeTransform = useCallback(
     (sourceCode: string, instruction: string) => {
+      setPageMode('workspace');
       setViewMode('preview');
-      setSelectedNode(null);
-      setPreviewReferenceActive(false);
+      setPreviewReferenceActive(true);
       transformCode(sourceCode, instruction);
     },
     [transformCode],
   );
 
   const handleImageToCode = useCallback(
-    (imageFile: File, instruction: string) => {
+    (imageFile: File, instruction: string, model = 'deepseekv4') => {
+      setPageMode('workspace');
       setViewMode('preview');
-      setSelectedNode(null);
-      setPreviewReferenceActive(false);
-      imageToCode(imageFile, instruction);
+      setPreviewReferenceActive(true);
+      const normalizedModel = normalizeModel(model);
+      imageToCode(imageFile, instruction, normalizedModel);
     },
     [imageToCode],
   );
 
-  const handleNodeSelect = useCallback((node: NodeData | null) => {
-    setSelectedNode(node);
-  }, []);
-
   const handleParamChange = useCallback(
     (nodeId: string, key: string, value: unknown) => {
       updateNodeParams(nodeId, key, value);
-      setSelectedNode((prev) => {
-        if (!prev || prev.id !== nodeId) return prev;
-        return { ...prev, params: { ...prev.params, [key]: value } };
-      });
     },
     [updateNodeParams],
   );
@@ -271,78 +409,74 @@ export function AppLayout() {
     [syncFromCanvas],
   );
 
-  const handleConnectNodes = useCallback(
-    (sourceId: string, targetId: string) => {
-      addEdge(sourceId, targetId);
-    },
-    [addEdge],
-  );
-
-  const handleRemoveConnection = useCallback(
-    (sourceId: string, targetId: string) => {
-      removeEdge(sourceId, targetId);
-    },
-    [removeEdge],
-  );
-
-  const handleGenerateFromGraph = useCallback(() => {
-    setViewMode('preview');
-    generateFromGraph();
-  }, [generateFromGraph]);
-
-  const handleSaveLocalParams = useCallback(() => {
-    saveNodeParamsOnly();
-  }, [saveNodeParamsOnly]);
-
   const handleApplyAllParams = useCallback(() => {
     regenerateFromParams();
     setViewMode('preview');
   }, [regenerateFromParams]);
 
-  const handleRestoreHistory = useCallback(
-    (entry: HistoryEntry) => {
-      restoreHistory(entry);
-      setViewMode('preview');
-      setSelectedNode(null);
-      setPreviewReferenceActive(false);
-    },
-    [restoreHistory],
-  );
-
-  const handleMoveToParent = useCallback(
-    (entryId: string, newParentId: string | null) => {
-      moveToParent(entryId, newParentId);
-
-      if (newParentId) {
-        const parentEntry = history.find((e) => e.id === newParentId);
-        const childEntry = history.find((e) => e.id === entryId);
-        if (parentEntry && childEntry) {
-          restoreHistory(parentEntry);
-          adjustCode(childEntry.prompt);
-          setViewMode('preview');
-          setSelectedNode(null);
-          setPreviewReferenceActive(false);
-        }
-      }
-    },
-    [history, moveToParent, restoreHistory, adjustCode],
-  );
-
   const handlePreviewNodeActivate = useCallback(() => {
     setViewMode('preview');
-    setSelectedNode(null);
-    setPreviewReferenceActive((active) => {
-      const next = !active;
-      if (next && finalCode) refreshPreview();
-      return next;
-    });
-  }, [finalCode, refreshPreview]);
+    setPreviewReferenceActive(true);
+  }, []);
+
+  const handlePreviewNodeDeactivate = useCallback(() => {
+    setPreviewReferenceActive(false);
+  }, []);
 
   const handlePreviewFullscreen = useCallback(() => {
-    setPreviewReferenceActive(true);
+    setPreviewReferenceActive(false);
     setFullscreenPreview(true);
     if (finalCode) refreshPreview();
   }, [finalCode, refreshPreview]);
+
+  const handleOpenVideoExport = useCallback(() => {
+    setVideoExportOpen(true);
+    setVideoCaptureRequestId(Date.now());
+  }, []);
+
+  const handleStartVideoExport = useCallback(() => {
+    if (!videoCapture) {
+      setVideoCaptureRequestId(Date.now());
+      setVideoExportProgress({
+        stage: 'error',
+        frameIndex: 0,
+        frameCount: 0,
+        progress: 0,
+        elapsedMs: 0,
+        estimatedRemainingMs: null,
+        message: '请等待预览画面捕获完成后再导出视频',
+      });
+      return;
+    }
+    const controller = new VideoExportController({
+      preview: {
+        width: 1920,
+        height: 1080,
+        timelineDuration: videoExportDocument.range.durationSeconds,
+      },
+      async createFrameSource(document) {
+        const canvas = await dataUrlToCanvas(videoCapture);
+        return new CanvasSnapshotFrameSource(canvas, document.range.durationSeconds, document.size.fit);
+      },
+      onProgress: setVideoExportProgress,
+    });
+    videoExportControllerRef.current = controller;
+    void controller.export(videoExportDocument).catch((error) => {
+      setVideoExportProgress({
+        stage: error instanceof DOMException && error.name === 'AbortError' ? 'cancelled' : 'error',
+        frameIndex: 0,
+        frameCount: 0,
+        progress: 0,
+        elapsedMs: 0,
+        estimatedRemainingMs: null,
+        message: error instanceof Error ? error.message : '视频导出失败',
+      });
+    });
+  }, [videoCapture, videoExportDocument]);
+
+  const handleCancelVideoExport = useCallback(() => {
+    videoExportControllerRef.current?.cancel();
+  }, []);
 
   useEffect(() => {
     if (!fullscreenPreview) return;
@@ -357,11 +491,25 @@ export function AppLayout() {
   const nodes = finalNodes || [];
   const edges = finalEdges || [];
 
-  const phaseText: Record<string, string> = {
-    generating: 'AI 正在生成代码...',
-    verifying: '正在沙箱中验证代码...',
-    fixing: `正在修复第 ${currentAttempt} 个错误（最多 ${maxAttempts} 次）...`,
-  };
+  // 稳定化 previewNode 对象引用，避免每次渲染都创建新对象导致 NodeCanvas
+  // 内部的 layoutedNodes useMemo 和同步 Effect 不必要地重复执行
+  const activeRequest = requestLog.find((item) => item.status === 'active');
+  const previewNode = useMemo(() => ({
+    code,
+    refreshKey: previewKey,
+    referenceActive: previewReferenceActive,
+    referenceBackgroundUrl: TD_PREVIEW_BACKGROUND,
+    isProcessing,
+    generationStatus: activeRequest ? {
+      model: activeRequest.model,
+      message: activeRequest.message,
+      codeLength: activeRequest.code.length,
+    } : undefined,
+    onActivate: handlePreviewNodeActivate,
+    onDeactivate: handlePreviewNodeDeactivate,
+    onFullscreen: handlePreviewFullscreen,
+    onSendAnnotation: handleImageToCode,
+  }), [activeRequest, code, previewKey, previewReferenceActive, isProcessing, handlePreviewNodeActivate, handlePreviewNodeDeactivate, handlePreviewFullscreen, handleImageToCode]);
 
   return (
     <Layout className={styles.layout}>
@@ -371,6 +519,15 @@ export function AppLayout() {
             <button
               type="button"
               className={styles.logoButton}
+              onClick={handleReturnHome}
+              aria-label="回到 AI-Co-Art 首页"
+            >
+              <span className={styles.libLogoMark} aria-hidden="true" />
+              <span className={styles.libLogoText}>AI-Co-Art</span>
+            </button>
+            <button
+              type="button"
+              className={styles.projectNameButton}
               onClick={() => {
                 setProjectMenuOpen((open) => !open);
                 setUserMenuOpen(false);
@@ -379,8 +536,6 @@ export function AppLayout() {
               aria-expanded={projectMenuOpen}
               aria-label="打开项目菜单"
             >
-              <span className={styles.libLogoMark} aria-hidden="true" />
-              <span className={styles.libLogoText}>艺术编程</span>
               <span className={styles.projectDivider} />
               <span className={styles.projectName}>{projectTitle}</span>
             </button>
@@ -494,21 +649,14 @@ export function AppLayout() {
       </Header>
 
       <Content className={styles.content}>
+        {pageMode === 'home' ? (
+          <HomePage onStart={handleStartCreation} />
+        ) : (
+          <>
         <NodeToolbox />
 
         <div className={styles.workspace}>
           <div className={styles.canvasToolbar}>
-            <Tooltip title="应用所有节点的参数修改并刷新预览">
-              <Button
-                type="primary"
-                size="small"
-                icon={<CheckCircleOutlined />}
-                onClick={handleApplyAllParams}
-                disabled={!code || isProcessing}
-              >
-                应用全部参数并预览
-              </Button>
-            </Tooltip>
             <Button
               type={viewMode === 'preview' ? 'primary' : 'default'}
               size="small"
@@ -584,40 +732,56 @@ export function AppLayout() {
                 disabled={!code}
               />
             </Tooltip>
+            <Tooltip title="下载 H.264 MP4 视频">
+              <Button
+                size="small"
+                icon={<DownloadOutlined />}
+                onClick={handleOpenVideoExport}
+                disabled={!code}
+              >
+                下载视频
+              </Button>
+            </Tooltip>
           </div>
 
           <NodeCanvas
-            key={generationKey}
             nodes={nodes}
             edges={edges}
-            previewNode={{
-              code,
-              refreshKey: previewKey,
-              referenceActive: previewReferenceActive,
-              referenceBackgroundUrl: TD_PREVIEW_BACKGROUND,
-              isProcessing,
-              onActivate: handlePreviewNodeActivate,
-              onFullscreen: handlePreviewFullscreen,
-            }}
+            previewNode={previewNode}
+            generationKey={generationKey}
             onImageToCode={handleImageToCode}
-            onGenerateText={handleGenerate}
-            onExpandChat={() => setChatCollapsed(false)}
-            onNodeSelect={handleNodeSelect}
+            onGenerateText={handleNodeGenerate}
             onGraphChange={handleGraphChange}
-            onGenerateFromGraph={handleGenerateFromGraph}
+            onParamChange={handleParamChange}
+            onLiveParamsChange={handleApplyAllParams}
+            onNodeSelect={(node) => {
+              if (!node) {
+                setSelectedNode(null);
+                setSelectedNodes([]);
+                setInspectorCollapsed(true);
+                return;
+              }
+              if (node.type === 'preview' && selectedNode?.type === 'preview' && selectedNode.id === node.id && !inspectorCollapsed) {
+                setSelectedNode(null);
+                setSelectedNodes([]);
+                setInspectorCollapsed(true);
+                return;
+              }
+              setSelectedNode(node);
+              setSelectedNodes([node]);
+              setInspectorCollapsed(false);
+            }}
+            onNodeSelectionChange={(selection) => {
+              setSelectedNodes(selection);
+              if (selection.length === 1) setSelectedNode(selection[0]);
+              if (selection.length > 1) {
+                setSelectedNode(selection[0]);
+                setInspectorCollapsed(false);
+              }
+            }}
           />
 
           <CorrectionLog log={correctionLog} phase={phase} />
-
-          {isProcessing && (
-            <div className={styles.loading}>
-              <Spin size="large" indicator={<ThunderboltOutlined style={{ fontSize: 36 }} spin />} />
-              <Text className={styles.loadingText}>{phaseText[phase] || '处理中...'}</Text>
-              <Text className={styles.loadingSubText}>
-                第 {currentAttempt}/{maxAttempts} 次尝试
-              </Text>
-            </div>
-          )}
 
           {viewMode === 'editor' && (
             <div className={styles.codeOverlay}>
@@ -635,58 +799,59 @@ export function AppLayout() {
           )}
         </div>
 
-        <div
-          className={`${styles.paramDrawer} ${selectedNode ? styles.paramDrawerOpen : ''}`}
-          style={{ width: selectedNode ? 290 : 0 }}
-        >
-          <ParamPanel
-            selectedNode={selectedNode}
-            allNodes={nodes}
-            allEdges={edges}
-            onParamChange={handleParamChange}
-            onApply={handleSaveLocalParams}
-            onApplyAll={handleApplyAllParams}
-            onConnectNodes={handleConnectNodes}
-            onRemoveConnection={handleRemoveConnection}
-            adjustExplanation={adjustExplanation}
+        {!inspectorCollapsed && (
+          <div
+            className={`${styles.resizeHandle} ${inspectorResizing ? styles.resizing : ''}`}
+            onMouseDown={onInspectorResizeStart}
           />
-        </div>
-
-        <div className={`${styles.chatDock} ${chatCollapsed ? styles.chatDockCollapsed : ''}`}>
-          <button
-            type="button"
-            className={styles.chatCollapseBtn}
-            onClick={() => setChatCollapsed((collapsed) => !collapsed)}
-            aria-label={chatCollapsed ? '展开对话' : '收起对话'}
-          >
-            {chatCollapsed ? <DoubleLeftOutlined /> : <DoubleRightOutlined />}
-          </button>
-          {!chatCollapsed && (
-            <>
-              <div className={styles.chatColumn}>
-                <InputPanel
-                  onGenerate={handleGenerate}
-                  onAdjust={handleAdjust}
-                  onCodeTransform={handleCodeTransform}
-                  onImageToCode={handleImageToCode}
-                  isProcessing={isProcessing}
-                  hasCode={!!code}
-                  generatedCode={code}
-                  generatedNodes={nodes}
-                />
-              </div>
-              <div className={styles.historyColumn}>
-                <HistoryPanel
-                  history={history}
-                  onRestore={handleRestoreHistory}
-                  onDelete={deleteHistory}
-                  onMoveToParent={handleMoveToParent}
-                  activeBaseId={activeBaseHistoryId}
-                />
-              </div>
-            </>
+        )}
+        <aside
+          className={`${styles.contextInspector} ${inspectorCollapsed ? styles.contextInspectorCollapsed : ''}`}
+          style={{ width: inspectorCollapsed ? 0 : inspectorWidth }}
+        >
+          {!inspectorCollapsed && (
+            <button
+              type="button"
+              className={styles.inspectorCollapseBtn}
+              onClick={() => setInspectorCollapsed(true)}
+              aria-label="收起参数检查器"
+            >
+              <DoubleRightOutlined />
+            </button>
           )}
-        </div>
+          {!inspectorCollapsed && (
+            <ParamPanel
+              selectedNode={selectedNode}
+              selectedNodes={selectedNodes}
+              projectName={projectTitle}
+              allNodes={nodes}
+              allEdges={edges}
+              onParamChange={handleParamChange}
+              onApply={saveNodeParamsOnly}
+              onApplyAll={handleApplyAllParams}
+              adjustExplanation={adjustExplanation}
+            />
+          )}
+        </aside>
+
+        {adminMode && (
+          <div className={`${styles.chatDock} ${styles.adminDock}`}>
+            <div className={styles.adminModeTitle}>管理员模式 · F12 关闭</div>
+            <div className={styles.chatColumn}>
+              <InputPanel
+                onGenerate={handleGenerate}
+                onAdjust={handleAdjust}
+                onCodeTransform={handleCodeTransform}
+                onImageToCode={handleImageToCode}
+                isProcessing={isProcessing}
+                hasCode={!!code}
+                requestLog={requestLog}
+              />
+            </div>
+          </div>
+        )}
+          </>
+        )}
       </Content>
 
       {memberMarketOpen && (
@@ -777,8 +942,8 @@ export function AppLayout() {
           <PreviewWindow
             code={code}
             refreshKey={previewKey}
-            referenceActive
-            referenceBackgroundUrl={TD_PREVIEW_BACKGROUND}
+            referenceActive={false}
+            referenceBackgroundUrl=""
           />
           <button
             type="button"
@@ -791,15 +956,35 @@ export function AppLayout() {
         </div>
       )}
 
-      {verificationCode && (
-        <VerifierIframe
-          key={verificationKey}
-          code={verificationCode}
-          onError={onVerifierError}
-          onSuccess={onVerifierSuccess}
-          onLoaded={() => {}}
-        />
+      {videoExportOpen && code && (
+        <div className={styles.videoCaptureHost} aria-hidden="true">
+          <PreviewWindow
+            code={code}
+            refreshKey={previewKey}
+            referenceActive={false}
+            referenceBackgroundUrl=""
+            captureRequestId={videoCaptureRequestId}
+            onCapture={(payload) => {
+              if (payload.imageDataUrl) setVideoCapture(payload.imageDataUrl);
+            }}
+          />
+        </div>
       )}
+
+      <VideoExportDialog
+        open={videoExportOpen}
+        document={videoExportDocument}
+        previewWidth={1920}
+        previewHeight={1080}
+        timelineDuration={videoExportDocument.range.durationSeconds}
+        progress={videoExportProgress}
+        onChange={setVideoExportDocument}
+        onStart={handleStartVideoExport}
+        onCancel={handleCancelVideoExport}
+        onClose={() => setVideoExportOpen(false)}
+      />
+
+      {/* 已移除 VerifierIframe — 后台验证会导致长时间黑屏和不必要的自动修复 */}
     </Layout>
   );
 }

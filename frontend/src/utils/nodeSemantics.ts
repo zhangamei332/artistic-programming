@@ -6,6 +6,7 @@
  *   节点 → 局部文本指令 → 连线 → 逻辑关系文本 → 参数约束
  *   → 自动合成完整生成提示词 → AI 生成代码
  */
+import { completeNodeParams, getNodeSpecDefinition, getSpecNodeTypeList } from './nodeSpec.generated';
 
 export interface NodeSemantic {
   type: string;
@@ -222,6 +223,11 @@ export const edgeRelationRules: Record<string, Record<string, string>> = {
   },
   file_video: {
     material: 'video_texture',
+    '*': 'file_reference',
+  },
+  file_font: {
+    text: 'file_reference',
+    P5TextTextureNode: 'file_reference',
     '*': 'file_reference',
   },
 };
@@ -663,8 +669,8 @@ export const nodeSemanticRegistry: Record<string, NodeSemantic> = {
     inputs: ['touch_events', 'target_object'],
     outputs: ['gesture_state'],
     defaultParams: { gestureType: 'swipe', sensitivity: 1.0, description: '滑动手势控制对象旋转' },
-    promptTemplate: '创建手势交互逻辑，识别{gestureType}手势（灵敏度{sensitivity}），描述：{description}。通过触摸事件的移动轨迹、速度和方向来控制目标对象。',
-    threejsMapping: "使用 touchstart/touchmove/touchend 事件检测手势，计算移动向量和速度来控制对象变换。",
+    promptTemplate: '创建手势识别交互逻辑，识别{gestureType}手势（灵敏度{sensitivity}），描述：{description}。使用前端内置识别数据控制目标对象。',
+    threejsMapping: "禁止自行加载摄像头或模型；使用 window.__previewVision.subscribe('gesture', callback) 获取手势数据并控制对象变换。",
     p5jsMapping: '使用 touches[] 数组和 touchMoved()、touchStarted() 等函数。',
   },
   camera_interaction: {
@@ -708,7 +714,7 @@ export const nodeSemanticRegistry: Record<string, NodeSemantic> = {
     outputs: ['face_tracking_data'],
     defaultParams: { mode: 'tracking', trackPoints: ['eyes', 'nose', 'mouth'], sensitivity: 1.0, description: '追踪人脸位置控制摄像机视角' },
     promptTemplate: '创建人脸识别交互逻辑，模式为{mode}，追踪点{trackPoints}（灵敏度{sensitivity}），描述：{description}。通过摄像头检测人脸关键点位置，映射到目标对象的变换参数。',
-    threejsMapping: '使用 face-api.js / MediaPipe FaceMesh 检测人脸关键点，将坐标数据映射到 Three.js 对象。',
+    threejsMapping: "禁止自行加载摄像头或模型；使用 window.__previewVision.subscribe('face', callback) 获取人脸动作数据并控制 Three.js 对象。",
     p5jsMapping: '使用 ml5.js faceApi 或 clmtrackr 进行人脸检测和追踪。',
   },
   keyboard: {
@@ -790,6 +796,17 @@ export const nodeSemanticRegistry: Record<string, NodeSemantic> = {
     threejsMapping: "使用 VideoTexture 从 video 元素创建动态纹理。",
     p5jsMapping: "createVideo('{url}'); video.loop(); video.hide();",
   },
+  file_font: {
+    type: 'file_font',
+    label: '字体文件',
+    layer: '文件资源',
+    inputs: [],
+    outputs: ['font_data'],
+    defaultParams: { fileName: '', format: 'ttf' },
+    promptTemplate: '加载字体文件{fileName}（格式{format}），用于文字几何或文字纹理节点。',
+    threejsMapping: '使用 FontLoader 或浏览器 FontFace API 加载 TTF/OTF 字体。',
+    p5jsMapping: "loadFont('{fileName}');",
+  },
 
   // ========== GSAP 动画节点 ==========
   gsap_timeline: {
@@ -864,6 +881,22 @@ export function nodeToTextInstruction(
   nodeLabel: string,
   params: Record<string, unknown>,
 ): string {
+  if (nodeType.startsWith('gsap_')) {
+    return `[${nodeLabel}] 这是旧版 GSAP 节点，生成时必须迁移为 Signal 节点（Time/Lerp/Sequence/Trigger 等），禁止输出 gsap 代码。`;
+  }
+
+  const spec = getNodeSpecDefinition(nodeType);
+  if (spec) {
+    const completeParams = completeNodeParams(nodeType, params);
+    const paramStr = Object.entries(completeParams)
+      .map(([key, value]) => `${key}=${formatParamValue(value)}`)
+      .join(', ');
+    const inputList = spec.params.length > 0
+      ? spec.params.map((param) => param.id).join(', ')
+      : '无参数';
+    return `[${nodeLabel}] 使用 ${spec.op} 节点（family=${spec.family}），必须按规格路径生成，并补齐参数：${paramStr || inputList}。`;
+  }
+
   const sem = getNodeSemantic(nodeType);
   if (!sem) {
     // 回退：简单的节点描述
@@ -900,6 +933,15 @@ export function nodeToTextInstruction(
 // ---- 动画运动方式 ----
 
 export const ANIMATION_MOTION_TYPES: Record<string, string> = {
+  sine: 'Sine 正弦波',
+  pulse: 'Pulse 脉冲波',
+  saw: 'Saw 锯齿波',
+  ramp: 'Ramp 斜坡',
+  triangle: 'Triangle 三角波',
+  noise: 'Noise 噪波',
+  spring: 'Spring 弹簧',
+  collPulse: 'Coll Pulse 密集脉冲',
+  constant: 'Constant 恒定值',
   rotate: '持续旋转',
   fastRotate: '快速旋转',
   slowMove: '缓慢移动',
@@ -944,25 +986,28 @@ export function buildGraphText(input: GraphTextInput): GraphTextOutput {
     incoming.get(e.target)!.push(e.source);
   }
 
+  const familyOf = (nodeType: string) => getNodeSpecDefinition(nodeType)?.family || '';
+
   // 找出每类节点
-  const sceneNodes = nodes.filter((n) => ['scene', 'camera', 'renderer', 'comp_root'].includes(n.type));
-  const geometryNodes = nodes.filter((n) => ['geometry', 'material', 'mesh'].includes(n.type));
-  const lightNodes = nodes.filter((n) => ['ambientLight', 'directionalLight', 'pointLight'].includes(n.type));
-  const controlNodes = nodes.filter((n) => ['transform', 'animation', 'controls', 'responsive', 'gsap_timeline', 'gsap_tween', 'gsap_scroll'].includes(n.type));
-  const effectNodes = nodes.filter((n) => ['texture', 'particles', 'shader', 'color'].includes(n.type));
+  const sceneNodes = nodes.filter((n) => familyOf(n.type) === 'SCENE' || ['scene', 'camera', 'renderer', 'comp_root'].includes(n.type));
+  const geometryNodes = nodes.filter((n) => ['GEOMETRY', 'MATERIAL'].includes(familyOf(n.type)) || ['geometry', 'material', 'mesh'].includes(n.type));
+  const lightNodes = nodes.filter((n) => ['AmbientLight', 'DirectionalLight', 'PointLight', 'ambientLight', 'directionalLight', 'pointLight'].includes(n.type));
+  const controlNodes = nodes.filter((n) => familyOf(n.type) === 'SIGNAL' || ['transform', 'animation', 'controls', 'responsive'].includes(n.type));
+  const effectNodes = nodes.filter((n) => ['TEXTURE', 'PARTICLE', 'P5_TEXTURE'].includes(familyOf(n.type)) || ['texture', 'particles', 'shader', 'color'].includes(n.type));
   const interactionNodes = nodes.filter((n) =>
     ['interaction', 'gesture', 'camera_interaction', 'audioRhythm', 'mp4Recognition', 'faceRecognition', 'keyboard', 'mouse', 'hardware'].includes(n.type),
   );
   const drawingNodes = nodes.filter((n) =>
+    familyOf(n.type) === 'SVG' ||
     ['line', 'rect2d', 'ellipse2d', 'circle', 'arc', 'bezier', 'curve2d', 'vertex', 'quad'].includes(n.type),
   );
-  const fileNodes = nodes.filter((n) => n.type.startsWith('file_'));
+  const fileNodes = nodes.filter((n) => familyOf(n.type) === 'DATA' || n.type.startsWith('file_'));
 
   const sections: Record<string, string[]> = {};
 
   // 1. 项目概述
   const projectLines: string[] = [];
-  projectLines.push('使用 GSAP + Three.js 生成一个完整的创意编程作品。GSAP 负责 2D DOM 动画，Three.js 负责 3D WebGL 渲染。');
+  projectLines.push('使用 Three.js 作为唯一主渲染 Runtime；Signal 节点负责动画/交互数据流；p5.js 只允许作为可选动态纹理并转成 THREE.CanvasTexture；禁止使用 GSAP。');
   sections['项目概述'] = projectLines;
 
   // 2. 场景结构
@@ -1062,9 +1107,10 @@ export function buildGraphText(input: GraphTextInput): GraphTextOutput {
   ];
 
   fullParts.push('=== 代码生成指令 ===');
-  fullParts.push('目标语言: Three.js (WebGL) + GSAP (2D DOM动画)');
+  fullParts.push('目标语言: Three.js (WebGL) + Signal Runtime；p5.js 仅可作为动态纹理');
   fullParts.push('请根据以下节点图和参数生成完整可运行的代码。');
-  fullParts.push('代码必须包含所有 @node: type=name 和 @connect: source->target 注释标记。');
+  fullParts.push('代码必须包含所有 @node:type=name、@param:paramId=value 和 @connect:source->target 注释标记。');
+  fullParts.push(`允许节点类型: ${getSpecNodeTypeList().join(', ')}`);
 
   for (const section of sectionOrder) {
     const lines = sections[section];
@@ -1078,9 +1124,13 @@ export function buildGraphText(input: GraphTextInput): GraphTextOutput {
   fullParts.push('\n=== 关键约束 ===');
   fullParts.push('- 只输出纯JavaScript代码，不包含HTML标签和markdown代码块');
   fullParts.push('- Three.js: 必须有scene/camera/renderer/animate完整结构');
-  fullParts.push('- 所有物体挂载到根容器rootGroup下，动画使用ArrayList阵列模式');
-  fullParts.push('- GSAP 全局已加载，直接使用 gsap 对象，2D 绘图用 SVG + GSAP 实现');
-  fullParts.push('- 2D 图形（线段/矩形/椭圆/圆形/弧线/贝塞尔/曲线/顶点/四边形）使用 document.createElementNS 创建 SVG 元素');
+  fullParts.push('- 所有物体挂载到根容器rootGroup下，重复对象使用ArrayList或InstancedMesh');
+  fullParts.push('- 两个及以上独立能力必须拆为单文件组合模块：每项能力使用createXxx(context)，返回所需的root/update/resize/dispose钩子');
+  fullParts.push('- 使用唯一共享context与modules数组；只能有一个scene、renderer、ResizeObserver、requestAnimationFrame和全局清理入口');
+  fullParts.push('- 按节点连线与依赖顺序创建模块，统一animate分发module.update，统一dispose逆序清理；局部调整不得重写无关模块');
+  fullParts.push('- 禁止使用GSAP；动画用Time/LFO/NoiseSignal/Timer等Signal节点驱动目标参数');
+  fullParts.push('- p5.js只允许离屏绘制动态纹理，并作为THREE.CanvasTexture输入材质/粒子/平面');
+  fullParts.push('- 每个节点必须按规格表补齐全部@param，使用英文paramId');
   fullParts.push('- 保留所有 @node、@param、@color、@interaction、@connect 注释标记');
 
   return {

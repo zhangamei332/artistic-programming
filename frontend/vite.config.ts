@@ -5,11 +5,19 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:3001',
         changeOrigin: true,
       },
+    },
+  },
+  preview: {
+    headers: {
+      'Access-Control-Allow-Origin': '*',
     },
   },
 });

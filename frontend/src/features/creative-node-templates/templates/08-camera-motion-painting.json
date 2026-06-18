@@ -1,0 +1,255 @@
+{
+  "id": "camera-motion-painting",
+  "version": "1.1.0",
+  "name": "摄像头运动绘画",
+  "nameEN": "Camera Motion Painting",
+  "category": "camera",
+  "description": "通过帧差或光流提取运动区域，将运动速度、方向和强度映射为动态笔刷。",
+  "tags": [
+    "摄像头",
+    "运动检测",
+    "绘画",
+    "光流"
+  ],
+  "difficulty": "advanced",
+  "performance": "high",
+  "graph": {
+    "group": {
+      "title": "摄像头运动绘画",
+      "width": 1240,
+      "height": 540,
+      "collapsedByDefault": false,
+      "layoutOnly": true,
+      "renderFrame": false
+    },
+    "nodes": [
+      {
+        "id": "camera",
+        "type": "source.camera",
+        "label": "摄像头输入",
+        "position": {
+          "x": 40,
+          "y": 160
+        },
+        "params": {
+          "frameRate": 30
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "motion",
+        "type": "analysis.motion",
+        "label": "运动分析",
+        "position": {
+          "x": 310,
+          "y": 110
+        },
+        "params": {
+          "method": "frame-difference",
+          "threshold": 0.12,
+          "smoothing": 0.18
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "brush",
+        "type": "generator.brush",
+        "label": "动态笔刷",
+        "position": {
+          "x": 620,
+          "y": 110
+        },
+        "params": {
+          "brushType": "particles",
+          "size": 12,
+          "density": 0.5,
+          "fade": 0.015
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "renderer",
+        "type": "renderer.canvas2d",
+        "label": "Canvas渲染",
+        "position": {
+          "x": 950,
+          "y": 160
+        },
+        "params": {
+          "clearEachFrame": false
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "camera",
+        "sourcePort": "video",
+        "target": "motion",
+        "targetPort": "video",
+        "label": "视频 → 运动分析",
+        "mappings": [
+          {
+            "id": "m1",
+            "mode": "direct",
+            "input": "video",
+            "output": "video",
+            "label": "视频帧 → 运动检测",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "source": "motion",
+        "sourcePort": "motionMask",
+        "target": "brush",
+        "targetPort": "mask",
+        "label": "运动区域 → 绘制区域",
+        "mappings": [
+          {
+            "id": "m2",
+            "mode": "direct",
+            "input": "motionMask",
+            "output": "mask",
+            "label": "运动区域 → 笔刷遮罩",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e3",
+        "source": "motion",
+        "sourcePort": "motionPoints",
+        "target": "brush",
+        "targetPort": "position",
+        "label": "运动点 → 笔刷位置",
+        "mappings": [
+          {
+            "id": "m3",
+            "mode": "direct",
+            "input": "motionPoints",
+            "output": "position",
+            "label": "运动位置 → 笔刷位置",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e4",
+        "source": "motion",
+        "sourcePort": "motionVector",
+        "target": "brush",
+        "targetPort": "direction",
+        "label": "运动方向 → 笔刷方向",
+        "mappings": [
+          {
+            "id": "m4",
+            "mode": "direct",
+            "input": "motionVector",
+            "output": "direction",
+            "label": "运动方向 → 笔刷方向",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e5",
+        "source": "motion",
+        "sourcePort": "motionAmount",
+        "target": "brush",
+        "targetPort": "strength",
+        "label": "运动强度 → 笔刷尺寸",
+        "mappings": [
+          {
+            "id": "m5",
+            "mode": "continuous",
+            "input": "motionAmount",
+            "output": "strength",
+            "label": "运动强度 → 笔刷尺寸",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              4,
+              48
+            ],
+            "curve": "easeOut",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.14
+            }
+          }
+        ]
+      },
+      {
+        "id": "e6",
+        "source": "brush",
+        "sourcePort": "canvas",
+        "target": "renderer",
+        "targetPort": "canvas",
+        "label": "绘画 → 输出",
+        "mappings": [
+          {
+            "id": "m6",
+            "mode": "direct",
+            "input": "canvas",
+            "output": "canvas",
+            "label": "Canvas → 渲染",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "insertion": {
+    "surface": "host-node-canvas",
+    "renderGroupFrame": false,
+    "useHostNodeComponents": true,
+    "useHostEdgeComponent": true,
+    "useHostInspector": true,
+    "reuseExistingSystemNodes": true,
+    "insertAsSingleUndoTransaction": true
+  }
+}

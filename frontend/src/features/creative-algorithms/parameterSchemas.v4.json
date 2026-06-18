@@ -1,0 +1,736 @@
+{
+  "space-colonization-tree": {
+    "attractors": {
+      "type": "integer",
+      "label": "吸引点数量",
+      "min": 50,
+      "max": 3000,
+      "step": 50,
+      "default": 420
+    },
+    "influenceRadius": {
+      "type": "number",
+      "label": "影响半径",
+      "min": 10,
+      "max": 180,
+      "step": 1,
+      "default": 58
+    },
+    "killRadius": {
+      "type": "number",
+      "label": "吸收半径",
+      "min": 2,
+      "max": 40,
+      "step": 1,
+      "default": 9
+    },
+    "stepLength": {
+      "type": "number",
+      "label": "生长步长",
+      "min": 1,
+      "max": 20,
+      "step": 0.5,
+      "default": 5
+    },
+    "growthStepsPerSecond": {
+      "type": "number",
+      "label": "生长速度",
+      "min": 1,
+      "max": 120,
+      "step": 1,
+      "default": 26
+    },
+    "canopyWidth": {
+      "type": "number",
+      "label": "树冠宽度",
+      "min": 0.1,
+      "max": 1,
+      "step": 0.01,
+      "default": 0.72
+    },
+    "canopyHeight": {
+      "type": "number",
+      "label": "树冠高度",
+      "min": 0.1,
+      "max": 0.9,
+      "step": 0.01,
+      "default": 0.58
+    },
+    "branchWidth": {
+      "type": "number",
+      "label": "枝干线宽",
+      "min": 0.5,
+      "max": 8,
+      "step": 0.1,
+      "default": 1.7
+    }
+  },
+  "ant-colony-trails": {
+    "count": {
+      "type": "integer",
+      "label": "蚂蚁数量",
+      "min": 100,
+      "max": 15000,
+      "step": 100,
+      "default": 1800
+    },
+    "resolution": {
+      "type": "integer",
+      "label": "模拟分辨率",
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "default": 2
+    },
+    "speed": {
+      "type": "number",
+      "label": "移动速度",
+      "min": 1,
+      "max": 160,
+      "step": 1,
+      "default": 42
+    },
+    "sensorDistance": {
+      "type": "number",
+      "label": "传感距离",
+      "min": 1,
+      "max": 30,
+      "step": 0.5,
+      "default": 9
+    },
+    "sensorAngle": {
+      "type": "number",
+      "label": "传感角度",
+      "min": 0.1,
+      "max": 1.5,
+      "step": 0.05,
+      "default": 0.55
+    },
+    "turnSpeed": {
+      "type": "number",
+      "label": "转向速度",
+      "min": 0.1,
+      "max": 8,
+      "step": 0.1,
+      "default": 2.5
+    },
+    "deposit": {
+      "type": "number",
+      "label": "信息素沉积",
+      "min": 0.01,
+      "max": 1,
+      "step": 0.01,
+      "default": 0.28
+    },
+    "decay": {
+      "type": "number",
+      "label": "信息素衰减",
+      "min": 0.8,
+      "max": 0.999,
+      "step": 0.001,
+      "default": 0.972
+    },
+    "foodSources": {
+      "type": "integer",
+      "label": "食物点数量",
+      "min": 1,
+      "max": 12,
+      "step": 1,
+      "default": 4
+    }
+  },
+  "predator-prey": {
+    "preyCount": {
+      "type": "integer",
+      "label": "猎物数量",
+      "min": 10,
+      "max": 1000,
+      "step": 10,
+      "default": 120
+    },
+    "predatorCount": {
+      "type": "integer",
+      "label": "捕食者数量",
+      "min": 1,
+      "max": 80,
+      "step": 1,
+      "default": 8
+    },
+    "preySpeed": {
+      "type": "number",
+      "label": "猎物速度",
+      "min": 10,
+      "max": 260,
+      "step": 1,
+      "default": 82
+    },
+    "predatorSpeed": {
+      "type": "number",
+      "label": "捕食者速度",
+      "min": 10,
+      "max": 320,
+      "step": 1,
+      "default": 105
+    },
+    "fleeRadius": {
+      "type": "number",
+      "label": "逃离半径",
+      "min": 10,
+      "max": 260,
+      "step": 1,
+      "default": 95
+    },
+    "cohesion": {
+      "type": "number",
+      "label": "群体聚合",
+      "min": 0,
+      "max": 0.5,
+      "step": 0.005,
+      "default": 0.06
+    },
+    "wander": {
+      "type": "number",
+      "label": "随机游动",
+      "min": 0,
+      "max": 80,
+      "step": 1,
+      "default": 15
+    }
+  },
+  "steering-behaviors": {
+    "count": {
+      "type": "integer",
+      "label": "Agent 数量",
+      "min": 1,
+      "max": 1000,
+      "step": 10,
+      "default": 90
+    },
+    "maxSpeed": {
+      "type": "number",
+      "label": "最大速度",
+      "min": 10,
+      "max": 300,
+      "step": 1,
+      "default": 115
+    },
+    "maxForce": {
+      "type": "number",
+      "label": "最大转向力",
+      "min": 1,
+      "max": 300,
+      "step": 1,
+      "default": 120
+    },
+    "arriveRadius": {
+      "type": "number",
+      "label": "到达减速半径",
+      "min": 10,
+      "max": 260,
+      "step": 1,
+      "default": 90
+    },
+    "obstacleRadius": {
+      "type": "number",
+      "label": "障碍半径",
+      "min": 5,
+      "max": 140,
+      "step": 1,
+      "default": 42
+    },
+    "avoidStrength": {
+      "type": "number",
+      "label": "避障强度",
+      "min": 0,
+      "max": 8,
+      "step": 0.1,
+      "default": 2.2
+    },
+    "autoTarget": {
+      "type": "boolean",
+      "label": "自动目标",
+      "default": true
+    }
+  },
+  "n-body-gravity": {
+    "count": {
+      "type": "integer",
+      "label": "天体数量",
+      "min": 2,
+      "max": 500,
+      "step": 10,
+      "default": 90
+    },
+    "gravity": {
+      "type": "number",
+      "label": "引力常数",
+      "min": 1,
+      "max": 300,
+      "step": 1,
+      "default": 48
+    },
+    "softening": {
+      "type": "number",
+      "label": "软化距离",
+      "min": 1,
+      "max": 300,
+      "step": 1,
+      "default": 32
+    },
+    "damping": {
+      "type": "number",
+      "label": "速度阻尼",
+      "min": 0.9,
+      "max": 1,
+      "step": 0.0005,
+      "default": 0.999
+    },
+    "maxSpeed": {
+      "type": "number",
+      "label": "最大速度",
+      "min": 10,
+      "max": 600,
+      "step": 5,
+      "default": 150
+    },
+    "centralMass": {
+      "type": "number",
+      "label": "中心质量",
+      "min": 0,
+      "max": 200,
+      "step": 1,
+      "default": 24
+    },
+    "trails": {
+      "type": "number",
+      "label": "轨迹消退",
+      "min": 0.005,
+      "max": 0.4,
+      "step": 0.005,
+      "default": 0.08
+    }
+  },
+  "double-pendulum": {
+    "length1": {
+      "type": "number",
+      "label": "第一摆长",
+      "min": 10,
+      "max": 180,
+      "step": 1,
+      "default": 92
+    },
+    "length2": {
+      "type": "number",
+      "label": "第二摆长",
+      "min": 10,
+      "max": 180,
+      "step": 1,
+      "default": 82
+    },
+    "mass1": {
+      "type": "number",
+      "label": "第一质量",
+      "min": 0.1,
+      "max": 20,
+      "step": 0.1,
+      "default": 1
+    },
+    "mass2": {
+      "type": "number",
+      "label": "第二质量",
+      "min": 0.1,
+      "max": 20,
+      "step": 0.1,
+      "default": 1
+    },
+    "gravity": {
+      "type": "number",
+      "label": "重力",
+      "min": 0.1,
+      "max": 30,
+      "step": 0.1,
+      "default": 9.81
+    },
+    "angle1": {
+      "type": "number",
+      "label": "第一初始角",
+      "min": -3.14,
+      "max": 3.14,
+      "step": 0.01,
+      "default": 1.65
+    },
+    "angle2": {
+      "type": "number",
+      "label": "第二初始角",
+      "min": -3.14,
+      "max": 3.14,
+      "step": 0.01,
+      "default": 1.12
+    },
+    "damping": {
+      "type": "number",
+      "label": "阻尼",
+      "min": 0.9,
+      "max": 1,
+      "step": 0.0005,
+      "default": 0.999
+    },
+    "timeScale": {
+      "type": "number",
+      "label": "时间倍率",
+      "min": 0.05,
+      "max": 5,
+      "step": 0.05,
+      "default": 1.1
+    },
+    "trailLength": {
+      "type": "integer",
+      "label": "轨迹长度",
+      "min": 10,
+      "max": 3000,
+      "step": 10,
+      "default": 520
+    }
+  },
+  "ripple-simulation": {
+    "resolution": {
+      "type": "integer",
+      "label": "模拟分辨率",
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "default": 3
+    },
+    "damping": {
+      "type": "number",
+      "label": "波动阻尼",
+      "min": 0.8,
+      "max": 0.999,
+      "step": 0.001,
+      "default": 0.985
+    },
+    "disturbance": {
+      "type": "number",
+      "label": "扰动强度",
+      "min": 10,
+      "max": 1000,
+      "step": 10,
+      "default": 255
+    },
+    "autoDrops": {
+      "type": "boolean",
+      "label": "自动落点",
+      "default": true
+    },
+    "dropInterval": {
+      "type": "number",
+      "label": "落点间隔",
+      "min": 0.05,
+      "max": 8,
+      "step": 0.05,
+      "default": 0.8
+    },
+    "dropRadius": {
+      "type": "integer",
+      "label": "扰动半径",
+      "min": 1,
+      "max": 12,
+      "step": 1,
+      "default": 2
+    }
+  },
+  "gerstner-waves": {
+    "rows": {
+      "type": "integer",
+      "label": "波线数量",
+      "min": 1,
+      "max": 60,
+      "step": 1,
+      "default": 14
+    },
+    "amplitude1": {
+      "type": "number",
+      "label": "主波振幅",
+      "min": 0,
+      "max": 50,
+      "step": 0.5,
+      "default": 9
+    },
+    "wavelength1": {
+      "type": "number",
+      "label": "主波波长",
+      "min": 10,
+      "max": 500,
+      "step": 1,
+      "default": 165
+    },
+    "speed1": {
+      "type": "number",
+      "label": "主波速度",
+      "min": -5,
+      "max": 5,
+      "step": 0.05,
+      "default": 1.1
+    },
+    "amplitude2": {
+      "type": "number",
+      "label": "次波振幅",
+      "min": 0,
+      "max": 30,
+      "step": 0.5,
+      "default": 4
+    },
+    "wavelength2": {
+      "type": "number",
+      "label": "次波波长",
+      "min": 10,
+      "max": 300,
+      "step": 1,
+      "default": 76
+    },
+    "speed2": {
+      "type": "number",
+      "label": "次波速度",
+      "min": -5,
+      "max": 5,
+      "step": 0.05,
+      "default": -0.75
+    },
+    "lineWidth": {
+      "type": "number",
+      "label": "线宽",
+      "min": 0.5,
+      "max": 8,
+      "step": 0.1,
+      "default": 1.7
+    },
+    "horizontalStep": {
+      "type": "integer",
+      "label": "水平采样",
+      "min": 1,
+      "max": 20,
+      "step": 1,
+      "default": 4
+    }
+  },
+  "truchet-tiles": {
+    "tileSize": {
+      "type": "integer",
+      "label": "瓷砖尺寸",
+      "min": 8,
+      "max": 80,
+      "step": 1,
+      "default": 28
+    },
+    "lineWidth": {
+      "type": "number",
+      "label": "线宽",
+      "min": 0.5,
+      "max": 12,
+      "step": 0.5,
+      "default": 3
+    },
+    "mutationRate": {
+      "type": "number",
+      "label": "翻转速度",
+      "min": 0,
+      "max": 80,
+      "step": 1,
+      "default": 4
+    },
+    "animate": {
+      "type": "boolean",
+      "label": "自动变化",
+      "default": true
+    },
+    "style": {
+      "type": "select",
+      "label": "图案类型",
+      "options": [
+        "arcs",
+        "diagonal"
+      ],
+      "default": "arcs"
+    },
+    "seedDensity": {
+      "type": "number",
+      "label": "初始方向比例",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "default": 0.5
+    }
+  },
+  "floyd-steinberg-dithering": {
+    "resolution": {
+      "type": "integer",
+      "label": "处理分辨率",
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "default": 2
+    },
+    "levels": {
+      "type": "integer",
+      "label": "量化级数",
+      "min": 2,
+      "max": 16,
+      "step": 1,
+      "default": 2
+    },
+    "animateLevels": {
+      "type": "boolean",
+      "label": "动态级数",
+      "default": true
+    },
+    "animationSpeed": {
+      "type": "number",
+      "label": "动画速度",
+      "min": 0,
+      "max": 4,
+      "step": 0.05,
+      "default": 0.6
+    },
+    "colorMode": {
+      "type": "select",
+      "label": "颜色模式",
+      "options": [
+        "grayscale",
+        "rgb"
+      ],
+      "default": "grayscale"
+    }
+  },
+  "halftone": {
+    "cellSize": {
+      "type": "number",
+      "label": "网点单元",
+      "min": 3,
+      "max": 40,
+      "step": 1,
+      "default": 10
+    },
+    "animateCellSize": {
+      "type": "boolean",
+      "label": "动态网点",
+      "default": true
+    },
+    "animationRange": {
+      "type": "number",
+      "label": "尺寸变化范围",
+      "min": 0,
+      "max": 20,
+      "step": 0.5,
+      "default": 4
+    },
+    "animationSpeed": {
+      "type": "number",
+      "label": "动画速度",
+      "min": 0,
+      "max": 4,
+      "step": 0.05,
+      "default": 0.8
+    },
+    "dotScale": {
+      "type": "number",
+      "label": "网点比例",
+      "min": 0.1,
+      "max": 2,
+      "step": 0.05,
+      "default": 1
+    },
+    "invert": {
+      "type": "boolean",
+      "label": "反相",
+      "default": false
+    },
+    "background": {
+      "type": "color",
+      "label": "背景色",
+      "default": "#f5f5f0"
+    },
+    "foreground": {
+      "type": "color",
+      "label": "网点色",
+      "default": "#0a0c12"
+    }
+  },
+  "sdf-morphing": {
+    "shapeA": {
+      "type": "select",
+      "label": "形状 A",
+      "options": [
+        "circle",
+        "box",
+        "diamond"
+      ],
+      "default": "circle"
+    },
+    "shapeB": {
+      "type": "select",
+      "label": "形状 B",
+      "options": [
+        "circle",
+        "box",
+        "diamond"
+      ],
+      "default": "box"
+    },
+    "size": {
+      "type": "number",
+      "label": "形状尺寸",
+      "min": 10,
+      "max": 180,
+      "step": 1,
+      "default": 72
+    },
+    "blend": {
+      "type": "number",
+      "label": "融合比例",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "default": 0.5
+    },
+    "animate": {
+      "type": "boolean",
+      "label": "自动融合",
+      "default": true
+    },
+    "speed": {
+      "type": "number",
+      "label": "融合速度",
+      "min": 0,
+      "max": 4,
+      "step": 0.05,
+      "default": 0.8
+    },
+    "edgeWidth": {
+      "type": "number",
+      "label": "发光边缘",
+      "min": 0.5,
+      "max": 20,
+      "step": 0.5,
+      "default": 4
+    },
+    "resolution": {
+      "type": "integer",
+      "label": "采样分辨率",
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "default": 2
+    },
+    "operation": {
+      "type": "select",
+      "label": "布尔模式",
+      "options": [
+        "morph",
+        "union",
+        "intersection",
+        "subtract"
+      ],
+      "default": "morph"
+    }
+  }
+}

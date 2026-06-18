@@ -10,23 +10,36 @@
 .header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 12px;
-  background: #202125;
+  gap: 10px;
+  min-height: 54px;
+  padding: 10px 14px;
+  background: #242529;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   flex-shrink: 0;
 }
 
+.header :global(.anticon) {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: #303238;
+  color: #aeb3ba;
+  font-size: 15px;
+}
+
 .title {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 600;
-  color: #c7ccd3;
+  color: #f4f4f4;
 }
 
 .empty {
-  padding: 16px;
+  padding: 8px 16px;
   text-align: center;
-  font-size: 12px;
+  font-size: 11px;
   color: #9aa1aa;
 }
 
@@ -37,6 +50,9 @@
 }
 
 .item {
+  display: flex;
+  gap: 6px;
+  position: relative;
   padding: 8px 12px;
   cursor: pointer;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -97,17 +113,11 @@
   white-space: nowrap;
 }
 
-.deleteBtn {
+.codeHint {
   margin-left: auto;
-  color: #ccc;
   font-size: 10px;
-  padding: 0 2px;
-  min-width: auto;
-  height: 18px;
-}
-
-.deleteBtn:hover {
-  color: #ff4d4f;
+  color: #67d9ff;
+  white-space: nowrap;
 }
 
 /* 子级记录样式 — 紧凑型 */
@@ -135,11 +145,6 @@
 .itemChild .badge {
   font-size: 9px;
   padding: 0 4px;
-}
-
-.itemChild .deleteBtn {
-  font-size: 9px;
-  height: 14px;
 }
 
 .itemChild:hover {
@@ -185,4 +190,49 @@
 
 .itemContent {
   flex: 1;
+  min-width: 0;
+}
+
+.liveItem {
+  margin: 8px;
+  border: 1px solid rgba(103, 217, 255, 0.28);
+  border-radius: 8px;
+  background: rgba(24, 48, 56, 0.52);
+}
+
+.liveItemActive {
+  box-shadow: inset 0 0 0 1px rgba(103, 217, 255, 0.35);
+}
+
+.liveProgress {
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.4;
+  color: #b9c3cc;
+}
+
+.codeBlock {
+  width: 100%;
+  max-height: 320px;
+  margin: 8px 0 0;
+  padding: 10px;
+  overflow: auto;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: #050607;
+  color: #d7e1ea;
+  font-family: Consolas, Monaco, monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.itemActive .itemPrompt,
+.itemActive .liveProgress {
+  color: #1f1f1f;
+}
+
+.itemActive .badge {
+  background: #fff;
+  color: #4d4d4d;
 }

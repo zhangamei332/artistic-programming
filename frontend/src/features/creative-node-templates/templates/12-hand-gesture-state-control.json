@@ -1,0 +1,496 @@
+{
+  "id": "hand-gesture-state-control",
+  "version": "1.1.0",
+  "name": "手势状态控制场景",
+  "nameEN": "Hand Gesture State Control",
+  "category": "gesture",
+  "description": "使用张开手、握拳、捏合、数字手势和手掌位置控制场景状态。",
+  "tags": [
+    "手势识别",
+    "状态机",
+    "粒子",
+    "场景控制"
+  ],
+  "difficulty": "advanced",
+  "performance": "high",
+  "graph": {
+    "group": {
+      "title": "手势状态控制场景",
+      "width": 1540,
+      "height": 700,
+      "collapsedByDefault": false,
+      "layoutOnly": true,
+      "renderFrame": false
+    },
+    "nodes": [
+      {
+        "id": "camera",
+        "type": "source.camera",
+        "label": "摄像头输入",
+        "position": {
+          "x": 40,
+          "y": 190
+        },
+        "params": {
+          "frameRate": 30
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "hand",
+        "type": "analysis.hand",
+        "label": "手势识别",
+        "position": {
+          "x": 300,
+          "y": 100
+        },
+        "params": {
+          "confidence": 0.65,
+          "smoothing": 0.2,
+          "gestureHoldMs": 140,
+          "gestureCooldownMs": 450
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "state",
+        "type": "logic.state-machine",
+        "label": "手势状态机",
+        "position": {
+          "x": 600,
+          "y": 80
+        },
+        "params": {
+          "initialState": "IDLE",
+          "states": [
+            "IDLE",
+            "EXPAND",
+            "HOLD",
+            "MODE_A",
+            "MODE_B"
+          ],
+          "holdMs": 140,
+          "cooldownMs": 500
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "scene",
+        "type": "controller.scene",
+        "label": "场景控制",
+        "position": {
+          "x": 890,
+          "y": 100
+        },
+        "params": {
+          "targetScope": "group",
+          "transition": "spring"
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "geometry",
+        "type": "generator.geometry",
+        "label": "场景主体",
+        "position": {
+          "x": 600,
+          "y": 380
+        },
+        "params": {
+          "geometryType": "particle-sphere",
+          "size": 1
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "renderer",
+        "type": "renderer.threejs",
+        "label": "Three.js渲染",
+        "position": {
+          "x": 1180,
+          "y": 190
+        },
+        "params": {
+          "rendererType": "webgl"
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "camera",
+        "sourcePort": "video",
+        "target": "hand",
+        "targetPort": "video",
+        "label": "视频 → 手势识别",
+        "mappings": [
+          {
+            "id": "m1",
+            "mode": "direct",
+            "input": "video",
+            "output": "video",
+            "label": "视频帧 → 手势识别",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "source": "hand",
+        "sourcePort": "openPalm",
+        "target": "state",
+        "targetPort": "openPalm",
+        "label": "张开手 → EXPAND",
+        "mappings": [
+          {
+            "id": "m2",
+            "mode": "event",
+            "input": "openPalm",
+            "output": "openPalm",
+            "label": "张开手 → 扩散状态",
+            "curve": "step",
+            "clamp": true,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            },
+            "threshold": {
+              "operator": ">=",
+              "value": 0.5,
+              "hysteresis": 0.08
+            },
+            "trigger": {
+              "behavior": "onEnter",
+              "holdMs": 140,
+              "cooldownMs": 450
+            }
+          }
+        ]
+      },
+      {
+        "id": "e3",
+        "source": "hand",
+        "sourcePort": "fist",
+        "target": "state",
+        "targetPort": "fist",
+        "label": "握拳 → HOLD",
+        "mappings": [
+          {
+            "id": "m3",
+            "mode": "event",
+            "input": "fist",
+            "output": "fist",
+            "label": "握拳 → 聚合/保持",
+            "curve": "step",
+            "clamp": true,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            },
+            "threshold": {
+              "operator": ">=",
+              "value": 0.5,
+              "hysteresis": 0.08
+            },
+            "trigger": {
+              "behavior": "onEnter",
+              "holdMs": 140,
+              "cooldownMs": 450
+            }
+          }
+        ]
+      },
+      {
+        "id": "e4",
+        "source": "hand",
+        "sourcePort": "pinch",
+        "target": "state",
+        "targetPort": "pinch",
+        "label": "捏合 → 选择",
+        "mappings": [
+          {
+            "id": "m4",
+            "mode": "event",
+            "input": "pinch",
+            "output": "pinch",
+            "label": "捏合 → 选择事件",
+            "curve": "step",
+            "clamp": true,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            },
+            "threshold": {
+              "operator": ">=",
+              "value": 0.5,
+              "hysteresis": 0.08
+            },
+            "trigger": {
+              "behavior": "onEnter",
+              "holdMs": 120,
+              "cooldownMs": 350
+            }
+          }
+        ]
+      },
+      {
+        "id": "e5",
+        "source": "hand",
+        "sourcePort": "digit",
+        "target": "state",
+        "targetPort": "digit",
+        "label": "数字手势 → 模式",
+        "mappings": [
+          {
+            "id": "m5",
+            "mode": "state",
+            "input": "digit",
+            "output": "digit",
+            "label": "数字1–5 → 模式切换",
+            "curve": "step",
+            "clamp": true,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            },
+            "trigger": {
+              "behavior": "onEnter",
+              "holdMs": 180,
+              "cooldownMs": 550
+            }
+          }
+        ]
+      },
+      {
+        "id": "e6",
+        "source": "state",
+        "sourcePort": "state",
+        "target": "scene",
+        "targetPort": "state",
+        "label": "状态 → 场景",
+        "mappings": [
+          {
+            "id": "m6",
+            "mode": "direct",
+            "input": "state",
+            "output": "state",
+            "label": "手势状态 → 场景状态",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e7",
+        "source": "hand",
+        "sourcePort": "palmX",
+        "target": "scene",
+        "targetPort": "positionX",
+        "label": "手掌X → 位置X",
+        "mappings": [
+          {
+            "id": "m7",
+            "mode": "continuous",
+            "input": "palmX",
+            "output": "positionX",
+            "label": "手掌X → 场景位置X",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              -2.5,
+              2.5
+            ],
+            "curve": "linear",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.18
+            }
+          }
+        ]
+      },
+      {
+        "id": "e8",
+        "source": "hand",
+        "sourcePort": "palmY",
+        "target": "scene",
+        "targetPort": "positionY",
+        "label": "手掌Y → 位置Y",
+        "mappings": [
+          {
+            "id": "m8",
+            "mode": "continuous",
+            "input": "palmY",
+            "output": "positionY",
+            "label": "手掌Y → 场景位置Y",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              2,
+              -2
+            ],
+            "curve": "linear",
+            "invert": true,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.18
+            }
+          }
+        ]
+      },
+      {
+        "id": "e9",
+        "source": "hand",
+        "sourcePort": "palmScale",
+        "target": "scene",
+        "targetPort": "scale",
+        "label": "手掌尺寸 → 缩放",
+        "mappings": [
+          {
+            "id": "m9",
+            "mode": "continuous",
+            "input": "palmScale",
+            "output": "scale",
+            "label": "手掌尺寸 → 摄像机远近",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              0.65,
+              2.1
+            ],
+            "curve": "easeOut",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.2
+            }
+          }
+        ]
+      },
+      {
+        "id": "e10",
+        "source": "hand",
+        "sourcePort": "wristAngle",
+        "target": "scene",
+        "targetPort": "rotationY",
+        "label": "手腕角 → 旋转",
+        "mappings": [
+          {
+            "id": "m10",
+            "mode": "continuous",
+            "input": "wristAngle",
+            "output": "rotationY",
+            "label": "手腕角度 → 模型旋转",
+            "inputRange": [
+              -90,
+              90
+            ],
+            "outputRange": [
+              -1.2,
+              1.2
+            ],
+            "curve": "linear",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.2
+            }
+          }
+        ]
+      },
+      {
+        "id": "e11",
+        "source": "geometry",
+        "sourcePort": "object3d",
+        "target": "renderer",
+        "targetPort": "object3d",
+        "label": "主体 → 渲染",
+        "mappings": [
+          {
+            "id": "m11",
+            "mode": "direct",
+            "input": "object3d",
+            "output": "object3d",
+            "label": "Object3D → 渲染",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e12",
+        "source": "scene",
+        "sourcePort": "sceneState",
+        "target": "renderer",
+        "targetPort": "sceneState",
+        "label": "场景状态 → 渲染",
+        "mappings": [
+          {
+            "id": "m12",
+            "mode": "direct",
+            "input": "sceneState",
+            "output": "sceneState",
+            "label": "场景控制 → 渲染",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "insertion": {
+    "surface": "host-node-canvas",
+    "renderGroupFrame": false,
+    "useHostNodeComponents": true,
+    "useHostEdgeComponent": true,
+    "useHostInspector": true,
+    "reuseExistingSystemNodes": true,
+    "insertAsSingleUndoTransaction": true
+  }
+}

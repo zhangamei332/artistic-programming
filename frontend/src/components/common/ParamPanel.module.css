@@ -2,7 +2,229 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--color-bg-white);
+  background: #111214;
+  color: #f4f5f7;
+}
+
+.inspectorTitle {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.inspectorTitle strong,
+.inspectorTitle span {
+  display: block;
+}
+
+.inspectorTitle strong {
+  color: #fff;
+  font-size: 15px;
+}
+
+.inspectorTitle span {
+  margin-top: 3px;
+  color: #8f98a5;
+  font-size: 11px;
+}
+
+.sectionTitle {
+  margin: 12px 0 8px;
+  color: #f3f5f7;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.projectSummary {
+  display: grid;
+  gap: 8px;
+}
+
+.projectSummary div,
+.settingRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.projectSummary div {
+  padding: 9px 10px;
+  border-radius: 6px;
+  background: var(--color-bg-gray);
+}
+
+.projectSummary span,
+.settingRow span,
+.pathCard span {
+  color: var(--color-text-secondary);
+  font-size: 12px;
+}
+
+.projectSummary strong,
+.pathCard strong,
+.settingRow strong {
+  color: var(--color-text-primary);
+  font-size: 12px;
+}
+
+.performanceCard,
+.batchValue,
+.pathCard {
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  color: var(--color-text-secondary);
+  background: var(--color-bg-gray);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.previewTabs {
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.previewTabs :global(.ant-tabs-nav) {
+  margin: 0;
+  padding: 0 10px;
+  flex-shrink: 0;
+}
+
+.previewTabs :global(.ant-tabs-tab) {
+  padding: 10px 2px;
+  color: #929ba7;
+}
+
+.previewTabs :global(.ant-tabs-tab-active .ant-tabs-tab-btn) {
+  color: #fff;
+}
+
+.previewTabs :global(.ant-tabs-content-holder) {
+  overflow-y: auto;
+}
+
+.tabBody {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.pathCard {
+  display: grid;
+  gap: 3px;
+}
+
+.previewNodeList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.previewNodeButton {
+  width: 100%;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: #1c1e21;
+  color: #fff;
+  cursor: pointer;
+  text-align: left;
+}
+
+.previewNodeButton:hover,
+.previewNodeButtonActive {
+  border-color: rgba(104, 224, 255, 0.55);
+  background: #24272b;
+}
+
+.previewNodeButton span,
+.previewNodeButton small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.previewNodeButton span {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.previewNodeButton small {
+  margin-top: 3px;
+  color: #838c98;
+  font-size: 10px;
+}
+
+.previewNodeParams {
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.previewParamList {
+  display: grid;
+  gap: 4px;
+}
+
+.creativeFacade {
+  display: grid;
+  gap: 12px;
+}
+
+.creativePipelineStatus,
+.creativeReceipt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid rgba(104, 224, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(104, 224, 255, 0.07);
+  color: #cdefff;
+  font-size: 11px;
+}
+
+.creativePipelineStatus span {
+  color: #8fa7b8;
+}
+
+.creativeHistoryActions {
+  display: flex;
+  gap: 8px;
+}
+
+.creativeSection {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 10px;
+  background: #17191d;
+}
+
+.creativeSection h4 {
+  margin: 0;
+  color: #f1f4f8;
+  font-size: 13px;
+}
+
+.creativeSection :global(.ant-select) {
+  width: 100%;
+}
+
+.creativeReceipt {
+  justify-content: flex-start;
+  color: #7ee7a7;
+  border-color: rgba(126, 231, 167, 0.22);
+  background: rgba(126, 231, 167, 0.07);
 }
 
 .collapsed {
@@ -12,15 +234,15 @@
   padding: 6px var(--spacing-md);
   cursor: pointer;
   font-size: 12px;
-  color: var(--color-text-secondary);
-  background: var(--color-bg-gray);
+  color: #b7bec8;
+  background: #191b1e;
   user-select: none;
   height: 32px;
   flex-shrink: 0;
 }
 
 .collapsed:hover {
-  background: #e8ecf1;
+  background: #24272b;
 }
 
 .headerText {
@@ -39,7 +261,7 @@
   gap: var(--spacing-sm);
   margin-bottom: var(--spacing-sm);
   padding-bottom: var(--spacing-sm);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .nodeCategory {
@@ -61,7 +283,7 @@
 .nodeLabel {
   font-size: 14px;
   font-weight: 600;
-  color: var(--color-text-primary);
+  color: #fff;
 }
 
 .paramGroup {
@@ -73,7 +295,7 @@
   align-items: center;
   justify-content: space-between;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: #aeb6c1;
   margin-bottom: 4px;
 }
 
@@ -85,7 +307,7 @@
 
 .paramValue {
   font-size: 12px;
-  color: var(--color-text-primary);
+  color: #fff;
   min-width: 40px;
   text-align: right;
 }
@@ -112,7 +334,7 @@
 
 .interactionText {
   font-size: 13px;
-  color: var(--color-text-primary);
+  color: #fff;
   flex: 1;
 }
 
@@ -140,13 +362,13 @@
   padding: 12px var(--spacing-md);
   text-align: center;
   font-size: 12px;
-  color: var(--color-text-secondary);
+  color: #8f98a5;
 }
 
 .applyRow {
   margin-top: var(--spacing-sm);
   padding-top: var(--spacing-sm);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .adjustExplain {
@@ -293,7 +515,7 @@
 .connectSection {
   margin-top: var(--spacing-sm);
   padding-top: var(--spacing-sm);
-  border-top: 1px solid var(--color-border);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .connectLabel {
@@ -345,5 +567,20 @@
 .panelDropActive {
   outline: 2px dashed #fa541c;
   outline-offset: -2px;
-  background: #fff7e6 !important;
+  background: #251b15 !important;
+}
+
+.panel :global(.ant-select-selector),
+.panel :global(.ant-input),
+.panel :global(.ant-input-number),
+.panel :global(.ant-input-number-input),
+.panel :global(.ant-color-picker-trigger) {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  background: #24272b !important;
+  color: #fff !important;
+}
+
+.panel :global(.ant-select-selection-item),
+.panel :global(.ant-input-number-input) {
+  color: #fff !important;
 }

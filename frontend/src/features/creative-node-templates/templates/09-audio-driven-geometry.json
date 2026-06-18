@@ -1,0 +1,282 @@
+{
+  "id": "audio-driven-geometry",
+  "version": "1.1.0",
+  "name": "声音驱动几何",
+  "nameEN": "Audio Driven Geometry",
+  "category": "audio",
+  "description": "将音量、低中高频和节拍映射到几何缩放、形变、旋转和细节数量。",
+  "tags": [
+    "声音",
+    "FFT",
+    "几何",
+    "Three.js"
+  ],
+  "difficulty": "intermediate",
+  "performance": "medium",
+  "graph": {
+    "group": {
+      "title": "声音驱动几何",
+      "width": 1240,
+      "height": 540,
+      "collapsedByDefault": false,
+      "layoutOnly": true,
+      "renderFrame": false
+    },
+    "nodes": [
+      {
+        "id": "mic",
+        "type": "source.microphone",
+        "label": "麦克风输入",
+        "position": {
+          "x": 40,
+          "y": 170
+        },
+        "params": {
+          "gain": 1
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "audio",
+        "type": "analysis.audio",
+        "label": "声音分析",
+        "position": {
+          "x": 300,
+          "y": 90
+        },
+        "params": {
+          "fftSize": 2048,
+          "smoothing": 0.72
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "geometry",
+        "type": "generator.geometry",
+        "label": "几何图形",
+        "position": {
+          "x": 610,
+          "y": 110
+        },
+        "params": {
+          "geometryType": "icosphere",
+          "size": 1,
+          "segments": 96,
+          "deformMode": "noise"
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "renderer",
+        "type": "renderer.threejs",
+        "label": "Three.js渲染",
+        "position": {
+          "x": 950,
+          "y": 160
+        },
+        "params": {
+          "rendererType": "webgl",
+          "toneMapping": "aces"
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "mic",
+        "sourcePort": "audio",
+        "target": "audio",
+        "targetPort": "audio",
+        "label": "音频 → 分析",
+        "mappings": [
+          {
+            "id": "m1",
+            "mode": "direct",
+            "input": "audio",
+            "output": "audio",
+            "label": "音频流 → FFT",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "source": "audio",
+        "sourcePort": "rms",
+        "target": "geometry",
+        "targetPort": "scale",
+        "label": "音量 → 缩放",
+        "mappings": [
+          {
+            "id": "m2",
+            "mode": "continuous",
+            "input": "rms",
+            "output": "scale",
+            "label": "RMS → 整体尺寸",
+            "inputRange": [
+              0,
+              0.5
+            ],
+            "outputRange": [
+              0.75,
+              2.4
+            ],
+            "curve": "easeOut",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.14
+            }
+          }
+        ]
+      },
+      {
+        "id": "e3",
+        "source": "audio",
+        "sourcePort": "low",
+        "target": "geometry",
+        "targetPort": "deform",
+        "label": "低频 → 形变",
+        "mappings": [
+          {
+            "id": "m3",
+            "mode": "continuous",
+            "input": "low",
+            "output": "deform",
+            "label": "低频 → 形变强度",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              0,
+              1.8
+            ],
+            "curve": "exponential",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.16
+            }
+          }
+        ]
+      },
+      {
+        "id": "e4",
+        "source": "audio",
+        "sourcePort": "mid",
+        "target": "geometry",
+        "targetPort": "rotationSpeed",
+        "label": "中频 → 旋转速度",
+        "mappings": [
+          {
+            "id": "m4",
+            "mode": "continuous",
+            "input": "mid",
+            "output": "rotationSpeed",
+            "label": "中频 → 旋转速度",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              -1.5,
+              2.5
+            ],
+            "curve": "linear",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.12
+            }
+          }
+        ]
+      },
+      {
+        "id": "e5",
+        "source": "audio",
+        "sourcePort": "high",
+        "target": "geometry",
+        "targetPort": "detail",
+        "label": "高频 → 细节",
+        "mappings": [
+          {
+            "id": "m5",
+            "mode": "continuous",
+            "input": "high",
+            "output": "detail",
+            "label": "高频 → 细节数量",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              16,
+              160
+            ],
+            "curve": "easeInOut",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.1
+            }
+          }
+        ]
+      },
+      {
+        "id": "e6",
+        "source": "geometry",
+        "sourcePort": "object3d",
+        "target": "renderer",
+        "targetPort": "object3d",
+        "label": "几何 → 渲染",
+        "mappings": [
+          {
+            "id": "m6",
+            "mode": "direct",
+            "input": "object3d",
+            "output": "object3d",
+            "label": "Object3D → 渲染",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "insertion": {
+    "surface": "host-node-canvas",
+    "renderGroupFrame": false,
+    "useHostNodeComponents": true,
+    "useHostEdgeComponent": true,
+    "useHostInspector": true,
+    "reuseExistingSystemNodes": true,
+    "insertAsSingleUndoTransaction": true
+  }
+}

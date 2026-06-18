@@ -2,10 +2,13 @@ import OpenAI from 'openai';
 import { config } from '../../config';
 import { THREE_NODE_TYPES } from './nodeTypes';
 import { SYSTEM_PROMPT, FIX_SYSTEM_PROMPT } from './prompts';
+import { getNodeSpecDefinition } from './nodeSpec.generated';
 
 interface GenerateParams {
   prompt: string;
   language: string;
+  onProgress?: (message: string) => void;
+  onDelta?: (text: string) => void;
 }
 
 interface GenerateResult {
@@ -19,6 +22,8 @@ interface FixParams {
   code: string;
   error: string;
   language: 'threejs';
+  onProgress?: (message: string) => void;
+  onDelta?: (text: string) => void;
 }
 
 interface NodeData {
@@ -36,6 +41,71 @@ interface EdgeData {
 }
 
 export { THREE_NODE_TYPES };
+
+type ChatMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam;
+
+async function completeChat(
+  client: OpenAI,
+  messages: ChatMessage[],
+  temperature: number,
+  onProgress?: (message: string) => void,
+  onDelta?: (text: string) => void,
+): Promise<string> {
+  onProgress?.('正在连接 DeepSeek API');
+  const stream = await client.chat.completions.create({
+    model: 'deepseek-chat',
+    messages,
+    temperature,
+    max_tokens: 4096,
+    stream: true,
+  });
+
+  onProgress?.('API 已响应，正在接收代码');
+  let rawCode = '';
+  for await (const chunk of stream) {
+    const delta = chunk.choices[0]?.delta?.content || '';
+    if (!delta) continue;
+    rawCode += delta;
+    onDelta?.(delta);
+  }
+  onProgress?.('代码接收完成，正在整理结果');
+  return rawCode;
+}
+
+function parseAnnotationValue(rawValue: string): unknown {
+  const value = rawValue.trim();
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  if (/^-?\d+(\.\d+)?$/.test(value)) return Number(value);
+  if ((value.startsWith('[') && value.endsWith(']')) || (value.startsWith('{') && value.endsWith('}'))) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value;
+    }
+  }
+  return value;
+}
+
+function getFamilyRank(nodeType: string): number {
+  const family = getNodeSpecDefinition(nodeType)?.family;
+  if (!family) return 10;
+  const order = ['SCENE', 'SIGNAL', 'GEOMETRY', 'MATERIAL', 'TEXTURE', 'SVG', 'PARTICLE', 'P5_TEXTURE', 'DATA', 'AI'];
+  return order.indexOf(family) === -1 ? 10 : order.indexOf(family);
+}
+
+function applySpecLayout(nodes: NodeData[]): void {
+  const familyCounts = new Map<number, number>();
+  for (const node of nodes) {
+    const rank = getFamilyRank(node.type);
+    const index = familyCounts.get(rank) || 0;
+    node.position = {
+      x: 100 + rank * 260,
+      y: 100 + index * 150,
+    };
+    familyCounts.set(rank, index + 1);
+  }
+}
 
 export async function generateWithDeepSeek(
   params: GenerateParams,
@@ -55,17 +125,16 @@ export async function generateWithDeepSeek(
       ? ''
       : `请使用 ${params.language} 来生成代码。`;
 
-  const response = await client.chat.completions.create({
-    model: 'deepseek-chat',
-    messages: [
+  const rawCode = await completeChat(
+    client,
+    [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: `${params.prompt}\n${langHint}` },
     ],
-    temperature: 0.7,
-    max_tokens: 4096,
-  });
-
-  const rawCode = response.choices[0]?.message?.content || '';
+    0.7,
+    params.onProgress,
+    params.onDelta,
+  );
   const code = stripMarkdownCodeBlock(rawCode);
   const { nodes, edges } = parseAnnotations(code);
 
@@ -81,10 +150,7 @@ export function parseAnnotations(code: string): { nodes: NodeData[]; edges: Edge
   const nodes: NodeData[] = [];
   const edges: EdgeData[] = [];
   const lines = code.split('\n');
-
-  const cols = 3;
-  let row = 0;
-  let col = 0;
+  const pendingConnections: Array<{ sourceLabel: string; targetLabel: string }> = [];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -97,14 +163,13 @@ export function parseAnnotations(code: string): { nodes: NodeData[]; edges: Edge
       const nodeId = `node_${nodes.length}`;
 
       const params: Record<string, unknown> = {};
-      for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
+      for (let j = i + 1; j < lines.length; j++) {
         const nextLine = lines[j];
         if (nextLine.match(/\/\/\s*@node:/)) break;
 
         const paramMatch = nextLine.match(/\/\/\s*@param:(.+)=(.+)/);
         if (paramMatch) {
-          const val = parseFloat(paramMatch[2].trim());
-          params[paramMatch[1].trim()] = isNaN(val) ? paramMatch[2].trim() : val;
+          params[paramMatch[1].trim()] = parseAnnotationValue(paramMatch[2]);
         }
 
         const colorMatch = nextLine.match(/\/\/\s*@color:(.+)=(.+)/);
@@ -123,31 +188,18 @@ export function parseAnnotations(code: string): { nodes: NodeData[]; edges: Edge
         type: nodeType,
         label: nodeLabel,
         params,
-        position: { x: 100 + col * 320, y: 100 + row * 180 },
+        position: { x: 100, y: 100 },
       });
-
-      col++;
-      if (col >= cols) {
-        col = 0;
-        row++;
-      }
       continue;
     }
 
     // Match @connect:source->target (by label name)
     const connectMatch = line.match(/\/\/\s*@connect:(.+)->(.+)/);
     if (connectMatch) {
-      const sourceLabel = connectMatch[1].trim();
-      const targetLabel = connectMatch[2].trim();
-      const sourceNode = nodes.find((n) => n.label === sourceLabel);
-      const targetNode = nodes.find((n) => n.label === targetLabel);
-      if (sourceNode && targetNode) {
-        edges.push({
-          id: `edge_${sourceNode.id}_${targetNode.id}`,
-          source: sourceNode.id,
-          target: targetNode.id,
-        });
-      }
+      pendingConnections.push({
+        sourceLabel: connectMatch[1].trim(),
+        targetLabel: connectMatch[2].trim(),
+      });
     }
   }
 
@@ -155,7 +207,117 @@ export function parseAnnotations(code: string): { nodes: NodeData[]; edges: Edge
     return parseLegacyAnnotations(code);
   }
 
+  for (const connection of pendingConnections) {
+    const sourceNode = nodes.find((n) => n.label === connection.sourceLabel);
+    const targetNode = nodes.find((n) => n.label === connection.targetLabel);
+    if (!sourceNode || !targetNode) continue;
+    edges.push({
+      id: `edge_${sourceNode.id}_${targetNode.id}`,
+      source: sourceNode.id,
+      target: targetNode.id,
+    });
+  }
+
+  applySpecLayout(nodes);
+  addCreativeControlNode(code, nodes, edges);
+
   return { nodes, edges };
+}
+
+function addCreativeControlNode(code: string, nodes: NodeData[], edges: EdgeData[]) {
+  if (nodes.length === 0) return;
+  const globalParams = parseGlobalParams(code);
+  const existingControlNode = nodes.find((node) => node.type === 'CreativeControls');
+  if (existingControlNode) {
+    existingControlNode.label = '全局主体参数';
+    existingControlNode.params = globalParams;
+    return;
+  }
+  const controlNode: NodeData = {
+    id: `node_${nodes.length}`,
+    type: 'CreativeControls',
+    label: '全局主体参数',
+    params: globalParams,
+    position: { x: 100, y: 100 },
+  };
+  nodes.push(controlNode);
+  const sourceNode = nodes.find((node) => node.id !== controlNode.id && !['scene', 'camera', 'renderer', 'controls'].includes(node.type));
+  const globalMotionType = typeof globalParams.motionType === 'string' ? globalParams.motionType : '';
+  const hasMotionNode = nodes.some((node) => (
+    node.id !== controlNode.id
+    && (typeof node.params.motionType === 'string' || typeof node.params.waveform === 'string')
+  ));
+  if (globalMotionType && !hasMotionNode) {
+    const motionNode: NodeData = {
+      id: `node_${nodes.length}`,
+      type: 'animation',
+      label: `${globalMotionType} 运动信号`,
+      params: {
+        motionType: globalMotionType,
+        speed: typeof globalParams.speed === 'number' ? globalParams.speed : 1,
+        amplitude: typeof globalParams.amplitude === 'number' ? globalParams.amplitude : 1,
+        ...(globalMotionType === 'spring' ? {
+          springConstant: typeof globalParams.springConstant === 'number' ? globalParams.springConstant : 0.5,
+          mass: typeof globalParams.mass === 'number' ? globalParams.mass : 1,
+          damping: typeof globalParams.damping === 'number' ? globalParams.damping : 0.2,
+        } : {}),
+      },
+      position: { x: 100, y: 100 },
+    };
+    nodes.push(motionNode);
+    if (sourceNode) {
+      edges.push({
+        id: `edge_${motionNode.id}_${sourceNode.id}`,
+        source: motionNode.id,
+        target: sourceNode.id,
+      });
+    }
+  }
+  if (sourceNode) {
+    edges.push({
+      id: `edge_${sourceNode.id}_${controlNode.id}`,
+      source: sourceNode.id,
+      target: controlNode.id,
+    });
+  }
+  applySpecLayout(nodes);
+}
+
+function parseGlobalParams(code: string): Record<string, unknown> {
+  const marker = code.match(/\bconst\s+GLOBAL_PARAMS\s*=\s*\{/);
+  if (!marker || marker.index === undefined) return {};
+  const start = code.indexOf('{', marker.index);
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let index = start; index < code.length; index++) {
+    const char = code[index];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
+    }
+    if (char === '"') {
+      inString = true;
+      continue;
+    }
+    if (char === '{') depth += 1;
+    if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        try {
+          const value = JSON.parse(code.slice(start, index + 1));
+          return value && typeof value === 'object' && !Array.isArray(value)
+            ? value as Record<string, unknown>
+            : {};
+        } catch {
+          return {};
+        }
+      }
+    }
+  }
+  return {};
 }
 
 function parseLegacyAnnotations(code: string): { nodes: NodeData[]; edges: EdgeData[] } {
@@ -208,8 +370,7 @@ function parseLegacyAnnotations(code: string): { nodes: NodeData[]; edges: EdgeD
 export async function fixWithDeepSeek(params: FixParams): Promise<{ code: string; nodes: NodeData[]; edges: EdgeData[] }> {
   if (!config.deepseek.apiKey) {
     console.warn('[DeepSeek] API Key not configured, returning original code');
-    const { nodes, edges } = parseAnnotations(params.code);
-    return { code: params.code, nodes, edges };
+    return { code: params.code, nodes: [], edges: [] };
   }
 
   const client = new OpenAI({
@@ -226,17 +387,16 @@ ${params.code}
 
 请按要求输出修改后的完整代码。`;
 
-  const response = await client.chat.completions.create({
-    model: 'deepseek-chat',
-    messages: [
+  const rawCode = await completeChat(
+    client,
+    [
       { role: 'system', content: FIX_SYSTEM_PROMPT },
       { role: 'user', content: userMessage },
     ],
-    temperature: 0.3,
-    max_tokens: 4096,
-  });
-
-  const rawCode = response.choices[0]?.message?.content || '';
+    0.3,
+    params.onProgress,
+    params.onDelta,
+  );
   const code = stripMarkdownCodeBlock(rawCode);
   const { nodes, edges } = parseAnnotations(code);
 
@@ -246,6 +406,8 @@ ${params.code}
 interface ImageToCodeParams {
   imageDataUrl: string;
   instruction: string;
+  onProgress?: (message: string) => void;
+  onDelta?: (text: string) => void;
 }
 
 export async function imageToCodeWithDeepSeek(
@@ -269,21 +431,20 @@ export async function imageToCodeWithDeepSeek(
     },
     {
       type: 'text',
-      text: `请根据这张参考图片和以下指令生成创意编程代码（GSAP + Three.js）：\n${params.instruction}\n\n请严格遵循 @node/@connect 注释标记规则。`,
+      text: `请根据这张参考图片和以下指令生成创意编程代码（Three.js 主渲染；GSAP 只用于 DOM 或对象属性动画；p5.js 只能作为可选动态纹理）：\n${params.instruction}\n\n请保留完整 @node/@param/@connect 节点注释，但不要创建 GUI 调参面板。`,
     },
   ];
 
-  const response = await client.chat.completions.create({
-    model: 'deepseek-chat',
-    messages: [
+  const rawCode = await completeChat(
+    client,
+    [
       { role: 'system', content: SYSTEM_PROMPT },
       { role: 'user', content: userContent as unknown as string },
     ],
-    temperature: 0.7,
-    max_tokens: 4096,
-  });
-
-  const rawCode = response.choices[0]?.message?.content || '';
+    0.7,
+    params.onProgress,
+    params.onDelta,
+  );
   const code = stripMarkdownCodeBlock(rawCode);
   const { nodes, edges } = parseAnnotations(code);
 
@@ -403,7 +564,6 @@ window.__disposeCallbacks.push(function dispose() {
   });
 });
 `.trim();
-
   const { nodes, edges } = parseAnnotations(code);
 
   return {

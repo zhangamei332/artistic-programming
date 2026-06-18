@@ -1,0 +1,202 @@
+{
+  "id": "image-copy-feedback",
+  "version": "1.1.0",
+  "name": "图像Copy与反馈",
+  "nameEN": "Image Copy and Feedback",
+  "category": "image",
+  "description": "对图像进行切片、区域复制和帧反馈，形成重复、残影与递归空间。",
+  "tags": [
+    "图像",
+    "Copy",
+    "反馈",
+    "残影"
+  ],
+  "difficulty": "intermediate",
+  "performance": "medium",
+  "graph": {
+    "group": {
+      "title": "图像Copy与反馈",
+      "width": 1240,
+      "height": 540,
+      "collapsedByDefault": false,
+      "layoutOnly": true,
+      "renderFrame": false
+    },
+    "nodes": [
+      {
+        "id": "image",
+        "type": "source.image",
+        "label": "图像 / 视频输入",
+        "position": {
+          "x": 40,
+          "y": 160
+        },
+        "params": {
+          "fit": "cover"
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "copy",
+        "type": "modifier.copy",
+        "label": "区域Copy",
+        "position": {
+          "x": 320,
+          "y": 130
+        },
+        "params": {
+          "copyMode": "horizontal-slices",
+          "copies": 18,
+          "offsetX": 8
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "feedback",
+        "type": "modifier.feedback",
+        "label": "帧反馈",
+        "position": {
+          "x": 620,
+          "y": 130
+        },
+        "params": {
+          "amount": 0.82,
+          "scale": 1.008,
+          "rotation": 0.15,
+          "blendMode": "screen"
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "renderer",
+        "type": "renderer.canvas2d",
+        "label": "Canvas渲染",
+        "position": {
+          "x": 940,
+          "y": 160
+        },
+        "params": {
+          "width": 1920,
+          "height": 1080,
+          "clearEachFrame": false
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "image",
+        "sourcePort": "image",
+        "target": "copy",
+        "targetPort": "image",
+        "label": "图像 → Copy",
+        "mappings": [
+          {
+            "id": "m1",
+            "mode": "direct",
+            "input": "image",
+            "output": "image",
+            "label": "图像 → 复制源",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "source": "copy",
+        "sourcePort": "canvas",
+        "target": "feedback",
+        "targetPort": "current",
+        "label": "复制结果 → 当前帧",
+        "mappings": [
+          {
+            "id": "m2",
+            "mode": "direct",
+            "input": "canvas",
+            "output": "current",
+            "label": "Copy结果 → 当前帧",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e3",
+        "source": "feedback",
+        "sourcePort": "canvas",
+        "target": "feedback",
+        "targetPort": "feedback",
+        "label": "历史帧自反馈",
+        "mappings": [
+          {
+            "id": "m3",
+            "mode": "direct",
+            "input": "canvas",
+            "output": "feedback",
+            "label": "上一帧 → 反馈输入",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e4",
+        "source": "feedback",
+        "sourcePort": "canvas",
+        "target": "renderer",
+        "targetPort": "canvas",
+        "label": "反馈 → 输出",
+        "mappings": [
+          {
+            "id": "m4",
+            "mode": "direct",
+            "input": "canvas",
+            "output": "canvas",
+            "label": "Canvas → 渲染",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "insertion": {
+    "surface": "host-node-canvas",
+    "renderGroupFrame": false,
+    "useHostNodeComponents": true,
+    "useHostEdgeComponent": true,
+    "useHostInspector": true,
+    "reuseExistingSystemNodes": true,
+    "insertAsSingleUndoTransaction": true
+  }
+}

@@ -1,0 +1,358 @@
+.overlay {
+  position: absolute;
+  inset: 18px;
+  z-index: 43;
+  overflow: hidden;
+  border: 1px solid rgba(94, 213, 255, 0.26);
+  border-radius: 10px;
+  background: #17191d;
+  color: #f4f7fb;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.48);
+  pointer-events: auto;
+}
+
+.panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.header {
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: #202328;
+}
+
+.header div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.header strong {
+  font-size: 15px;
+}
+
+.header span,
+.status {
+  color: #aeb7c4;
+  font-size: 12px;
+}
+
+.header button,
+.toolSection button,
+.uploadButton {
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 7px;
+  background: #2b3138;
+  color: #f4f7fb;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.header button {
+  padding: 0 12px;
+}
+
+.textLayout,
+.renameGrid,
+.cutoutGrid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+}
+
+.textLayout {
+  grid-template-columns: minmax(360px, 0.9fr) minmax(420px, 1.1fr);
+}
+
+.renameGrid {
+  grid-template-columns: 360px minmax(0, 1fr);
+}
+
+.cutoutGrid {
+  grid-template-columns: 280px minmax(360px, 1fr) minmax(280px, 0.7fr);
+}
+
+.previewPane,
+.toolSection,
+.cutoutWorkspace,
+.cutoutResult {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: #202328;
+}
+
+.previewPane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.textPreview {
+  flex: 1;
+  min-height: 260px;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  border-radius: 8px;
+  background:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.05) 25%, transparent 25%),
+    #f5f7fb;
+  background-size: 24px 24px;
+}
+
+.textPreview svg {
+  max-width: 92%;
+  max-height: 92%;
+}
+
+.uploadButton {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+}
+
+.uploadButton input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.toolSection {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.toolSection label,
+.ruleCard label,
+.fieldPair label,
+:global(.text-editor-inspector label) {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: #c8d0dc;
+  font-size: 12px;
+}
+
+.toolSection input,
+.toolSection select,
+.ruleCard input,
+.ruleCard select,
+:global(.text-editor-inspector input),
+:global(.text-editor-inspector select),
+:global(.text-editor-inspector textarea) {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: #14171b;
+  color: #f4f7fb;
+}
+
+.toolSection input,
+.toolSection select,
+.ruleCard input,
+.ruleCard select,
+:global(.text-editor-inspector input),
+:global(.text-editor-inspector select) {
+  height: 30px;
+  padding: 0 8px;
+}
+
+:global(.text-editor-inspector) {
+  min-height: 0;
+  overflow: auto;
+  padding: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: #202328;
+}
+
+:global(.text-editor-inspector section) {
+  margin-bottom: 14px;
+}
+
+:global(.text-editor-inspector h3) {
+  margin: 0 0 9px;
+  color: #ffffff;
+  font-size: 13px;
+}
+
+:global(.text-editor-inspector section > div) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+:global(.text-editor-inspector textarea) {
+  min-height: 96px;
+  padding: 8px;
+  resize: vertical;
+}
+
+:global(.text-editor-inspector fieldset) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+:global(.text-editor-inspector fieldset button) {
+  height: 28px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: #161a20;
+  color: #dbe3ef;
+}
+
+:global(.text-editor-inspector fieldset button[data-active='true']) {
+  border-color: rgba(98, 198, 255, 0.74);
+  background: rgba(30, 93, 132, 0.7);
+}
+
+.ruleList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ruleCard {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: #191d22;
+}
+
+.ruleCard header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ruleCard header label {
+  flex-direction: row;
+  align-items: center;
+}
+
+.fieldPair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.tableWrap {
+  min-height: 0;
+  overflow: auto;
+}
+
+.tableWrap table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.tableWrap th,
+.tableWrap td {
+  padding: 7px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  text-align: left;
+}
+
+.cutoutWorkspace {
+  display: flex;
+  overflow: hidden;
+}
+
+:global(.smart-cutout-workspace) {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+:global(.smart-cutout-cropper) {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: 7px;
+  background: #11161b;
+}
+
+:global(.smart-cutout-cropper img) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+:global(.smart-cutout-cropper cropper-canvas),
+:global(.smart-cutout-cropper cropper-image) {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 360px;
+}
+
+:global(.smart-cutout-cropper cropper-canvas) {
+  background: #11161b;
+}
+
+:global(.smart-cutout-workspace-toolbar) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cutoutResult {
+  display: grid;
+  place-items: center;
+}
+
+.cutoutResult img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+.emptyState {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: #8994a3;
+  text-align: center;
+}
+
+@media (max-width: 1100px) {
+  .textLayout,
+  .renameGrid,
+  .cutoutGrid {
+    grid-template-columns: 1fr;
+  }
+}

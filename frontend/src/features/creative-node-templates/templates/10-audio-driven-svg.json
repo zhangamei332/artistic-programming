@@ -1,0 +1,365 @@
+{
+  "id": "audio-driven-svg",
+  "version": "1.1.0",
+  "name": "声音驱动SVG",
+  "nameEN": "Audio Driven SVG",
+  "category": "audio",
+  "description": "用低频控制路径线宽、中频控制路径波动、高频控制发光，节拍触发路径生长。",
+  "tags": [
+    "声音",
+    "SVG",
+    "路径",
+    "跨模态"
+  ],
+  "difficulty": "advanced",
+  "performance": "medium",
+  "graph": {
+    "group": {
+      "title": "声音驱动SVG",
+      "width": 1320,
+      "height": 620,
+      "collapsedByDefault": false,
+      "layoutOnly": true,
+      "renderFrame": false
+    },
+    "nodes": [
+      {
+        "id": "mic",
+        "type": "source.microphone",
+        "label": "麦克风输入",
+        "position": {
+          "x": 40,
+          "y": 300
+        },
+        "params": {
+          "gain": 1
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "audio",
+        "type": "analysis.audio",
+        "label": "声音分析",
+        "position": {
+          "x": 300,
+          "y": 250
+        },
+        "params": {
+          "fftSize": 2048
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "svg",
+        "type": "source.svg",
+        "label": "SVG输入",
+        "position": {
+          "x": 40,
+          "y": 60
+        },
+        "params": {},
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "paths",
+        "type": "analysis.svg-paths",
+        "label": "路径解析",
+        "position": {
+          "x": 300,
+          "y": 40
+        },
+        "params": {
+          "sampleSpacing": 5
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "growth",
+        "type": "modifier.path-growth",
+        "label": "路径生长",
+        "position": {
+          "x": 600,
+          "y": 40
+        },
+        "params": {
+          "mode": "center-out",
+          "speed": 0.15,
+          "lineWidth": 1.5
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "deform",
+        "type": "modifier.path-deform",
+        "label": "路径波动",
+        "position": {
+          "x": 600,
+          "y": 250
+        },
+        "params": {
+          "deformType": "audio",
+          "direction": "normal",
+          "amplitude": 10
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "renderer",
+        "type": "renderer.svg",
+        "label": "SVG渲染",
+        "position": {
+          "x": 950,
+          "y": 140
+        },
+        "params": {
+          "strokeColor": "#79ddff"
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "mic",
+        "sourcePort": "audio",
+        "target": "audio",
+        "targetPort": "audio",
+        "label": "音频 → 分析",
+        "mappings": [
+          {
+            "id": "m1",
+            "mode": "direct",
+            "input": "audio",
+            "output": "audio",
+            "label": "音频流 → FFT",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "source": "svg",
+        "sourcePort": "svg",
+        "target": "paths",
+        "targetPort": "svg",
+        "label": "SVG → 路径",
+        "mappings": [
+          {
+            "id": "m2",
+            "mode": "direct",
+            "input": "svg",
+            "output": "svg",
+            "label": "SVG → 路径解析",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e3",
+        "source": "paths",
+        "sourcePort": "paths",
+        "target": "growth",
+        "targetPort": "paths",
+        "label": "路径 → 生长",
+        "mappings": [
+          {
+            "id": "m3",
+            "mode": "direct",
+            "input": "paths",
+            "output": "paths",
+            "label": "路径 → 生长",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e4",
+        "source": "growth",
+        "sourcePort": "paths",
+        "target": "deform",
+        "targetPort": "paths",
+        "label": "生长路径 → 波动",
+        "mappings": [
+          {
+            "id": "m4",
+            "mode": "direct",
+            "input": "paths",
+            "output": "paths",
+            "label": "显示路径 → 形变",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e5",
+        "source": "audio",
+        "sourcePort": "low",
+        "target": "growth",
+        "targetPort": "lineWidth",
+        "label": "低频 → 线宽",
+        "mappings": [
+          {
+            "id": "m5",
+            "mode": "continuous",
+            "input": "low",
+            "output": "lineWidth",
+            "label": "低频 → 路径线宽",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              0.6,
+              8
+            ],
+            "curve": "easeOut",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.14
+            }
+          }
+        ]
+      },
+      {
+        "id": "e6",
+        "source": "audio",
+        "sourcePort": "mid",
+        "target": "deform",
+        "targetPort": "strength",
+        "label": "中频 → 波动",
+        "mappings": [
+          {
+            "id": "m6",
+            "mode": "continuous",
+            "input": "mid",
+            "output": "strength",
+            "label": "中频 → 波动强度",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              0,
+              28
+            ],
+            "curve": "easeInOut",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.16
+            }
+          }
+        ]
+      },
+      {
+        "id": "e7",
+        "source": "audio",
+        "sourcePort": "beat",
+        "target": "growth",
+        "targetPort": "progress",
+        "label": "节拍 → 生长触发",
+        "mappings": [
+          {
+            "id": "m7",
+            "mode": "event",
+            "input": "beat",
+            "output": "progress",
+            "label": "节拍 → 增加生长",
+            "curve": "step",
+            "clamp": true,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            },
+            "threshold": {
+              "operator": ">=",
+              "value": 0.5,
+              "hysteresis": 0.08
+            },
+            "trigger": {
+              "behavior": "onEnter",
+              "holdMs": 0,
+              "cooldownMs": 120
+            }
+          }
+        ]
+      },
+      {
+        "id": "e8",
+        "source": "deform",
+        "sourcePort": "paths",
+        "target": "renderer",
+        "targetPort": "paths",
+        "label": "路径 → 输出",
+        "mappings": [
+          {
+            "id": "m8",
+            "mode": "direct",
+            "input": "paths",
+            "output": "paths",
+            "label": "变形路径 → SVG渲染",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "insertion": {
+    "surface": "host-node-canvas",
+    "renderGroupFrame": false,
+    "useHostNodeComponents": true,
+    "useHostEdgeComponent": true,
+    "useHostInspector": true,
+    "reuseExistingSystemNodes": true,
+    "insertAsSingleUndoTransaction": true
+  }
+}

@@ -1,0 +1,273 @@
+{
+  "id": "image-texture-mapping",
+  "version": "1.1.0",
+  "name": "图像肌理映射",
+  "nameEN": "Image Texture Mapping",
+  "category": "image",
+  "description": "将图像作为肌理底图，并用亮度、色相和边缘控制肌理密度、颜色与强度。",
+  "tags": [
+    "图像",
+    "肌理",
+    "映射",
+    "纹理"
+  ],
+  "difficulty": "basic",
+  "performance": "medium",
+  "graph": {
+    "group": {
+      "title": "图像肌理映射",
+      "width": 1240,
+      "height": 540,
+      "collapsedByDefault": false,
+      "layoutOnly": true,
+      "renderFrame": false
+    },
+    "nodes": [
+      {
+        "id": "image",
+        "type": "source.image",
+        "label": "图像输入",
+        "position": {
+          "x": 40,
+          "y": 170
+        },
+        "params": {
+          "fit": "cover"
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "features",
+        "type": "analysis.image-features",
+        "label": "图像特征分析",
+        "position": {
+          "x": 300,
+          "y": 70
+        },
+        "params": {
+          "resolution": 4,
+          "edgeThreshold": 0.22
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "texture",
+        "type": "generator.texture",
+        "label": "肌理生成",
+        "position": {
+          "x": 570,
+          "y": 150
+        },
+        "params": {
+          "textureType": "grain",
+          "size": 12,
+          "density": 0.55,
+          "direction": 0
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "renderer",
+        "type": "renderer.canvas2d",
+        "label": "Canvas渲染",
+        "position": {
+          "x": 900,
+          "y": 170
+        },
+        "params": {
+          "width": 1920,
+          "height": 1080
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "image",
+        "sourcePort": "image",
+        "target": "features",
+        "targetPort": "image",
+        "label": "图像 → 分析",
+        "mappings": [
+          {
+            "id": "m1",
+            "mode": "direct",
+            "input": "image",
+            "output": "image",
+            "label": "图像 → 分析源",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "source": "image",
+        "sourcePort": "image",
+        "target": "texture",
+        "targetPort": "image",
+        "label": "图像 → 肌理底图",
+        "mappings": [
+          {
+            "id": "m2",
+            "mode": "direct",
+            "input": "image",
+            "output": "image",
+            "label": "图像 → 纹理源",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e3",
+        "source": "features",
+        "sourcePort": "luminance",
+        "target": "texture",
+        "targetPort": "density",
+        "label": "亮度 → 密度",
+        "mappings": [
+          {
+            "id": "m3",
+            "mode": "continuous",
+            "input": "luminance",
+            "output": "density",
+            "label": "亮度 → 肌理密度",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              0.15,
+              0.95
+            ],
+            "curve": "easeInOut",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.12
+            }
+          }
+        ]
+      },
+      {
+        "id": "e4",
+        "source": "features",
+        "sourcePort": "hue",
+        "target": "texture",
+        "targetPort": "color",
+        "label": "色相 → 颜色",
+        "mappings": [
+          {
+            "id": "m4",
+            "mode": "continuous",
+            "input": "hue",
+            "output": "color",
+            "label": "色相 → 肌理颜色",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              0,
+              1
+            ],
+            "curve": "linear",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.08
+            }
+          }
+        ]
+      },
+      {
+        "id": "e5",
+        "source": "features",
+        "sourcePort": "edges",
+        "target": "texture",
+        "targetPort": "strength",
+        "label": "边缘 → 强度",
+        "mappings": [
+          {
+            "id": "m5",
+            "mode": "continuous",
+            "input": "edges",
+            "output": "strength",
+            "label": "边缘 → 肌理强度",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              0,
+              1
+            ],
+            "curve": "easeOut",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.1
+            }
+          }
+        ]
+      },
+      {
+        "id": "e6",
+        "source": "texture",
+        "sourcePort": "canvas",
+        "target": "renderer",
+        "targetPort": "canvas",
+        "label": "肌理 → 输出",
+        "mappings": [
+          {
+            "id": "m6",
+            "mode": "direct",
+            "input": "canvas",
+            "output": "canvas",
+            "label": "Canvas → 渲染",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "insertion": {
+    "surface": "host-node-canvas",
+    "renderGroupFrame": false,
+    "useHostNodeComponents": true,
+    "useHostEdgeComponent": true,
+    "useHostInspector": true,
+    "reuseExistingSystemNodes": true,
+    "insertAsSingleUndoTransaction": true
+  }
+}

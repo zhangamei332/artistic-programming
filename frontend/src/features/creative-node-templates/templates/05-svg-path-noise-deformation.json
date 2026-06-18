@@ -1,0 +1,175 @@
+{
+  "id": "svg-path-noise-deformation",
+  "version": "1.1.0",
+  "name": "SVG路径噪声变形",
+  "nameEN": "SVG Path Noise Deformation",
+  "category": "svg",
+  "description": "对SVG路径进行等距采样，再使用噪声、正弦、弹簧或交互力进行形变。",
+  "tags": [
+    "SVG",
+    "路径变形",
+    "噪声",
+    "波动"
+  ],
+  "difficulty": "intermediate",
+  "performance": "medium",
+  "graph": {
+    "group": {
+      "title": "SVG路径噪声变形",
+      "width": 1240,
+      "height": 540,
+      "collapsedByDefault": false,
+      "layoutOnly": true,
+      "renderFrame": false
+    },
+    "nodes": [
+      {
+        "id": "svg",
+        "type": "source.svg",
+        "label": "SVG输入",
+        "position": {
+          "x": 40,
+          "y": 160
+        },
+        "params": {},
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "paths",
+        "type": "analysis.svg-paths",
+        "label": "路径采样",
+        "position": {
+          "x": 300,
+          "y": 130
+        },
+        "params": {
+          "sampleSpacing": 6,
+          "simplify": 0
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "deform",
+        "type": "modifier.path-deform",
+        "label": "路径形变",
+        "position": {
+          "x": 600,
+          "y": 120
+        },
+        "params": {
+          "deformType": "noise",
+          "direction": "normal",
+          "amplitude": 12,
+          "noiseScale": 0.012,
+          "speed": 0.4
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "renderer",
+        "type": "renderer.svg",
+        "label": "SVG渲染",
+        "position": {
+          "x": 930,
+          "y": 160
+        },
+        "params": {
+          "strokeColor": "#79ddff"
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "svg",
+        "sourcePort": "svg",
+        "target": "paths",
+        "targetPort": "svg",
+        "label": "SVG → 采样",
+        "mappings": [
+          {
+            "id": "m1",
+            "mode": "direct",
+            "input": "svg",
+            "output": "svg",
+            "label": "SVG → 路径采样",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "source": "paths",
+        "sourcePort": "paths",
+        "target": "deform",
+        "targetPort": "paths",
+        "label": "采样路径 → 形变",
+        "mappings": [
+          {
+            "id": "m2",
+            "mode": "direct",
+            "input": "paths",
+            "output": "paths",
+            "label": "路径 → 形变输入",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e3",
+        "source": "deform",
+        "sourcePort": "paths",
+        "target": "renderer",
+        "targetPort": "paths",
+        "label": "变形路径 → 输出",
+        "mappings": [
+          {
+            "id": "m3",
+            "mode": "direct",
+            "input": "paths",
+            "output": "paths",
+            "label": "变形路径 → SVG渲染",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "insertion": {
+    "surface": "host-node-canvas",
+    "renderGroupFrame": false,
+    "useHostNodeComponents": true,
+    "useHostEdgeComponent": true,
+    "useHostInspector": true,
+    "reuseExistingSystemNodes": true,
+    "insertAsSingleUndoTransaction": true
+  }
+}

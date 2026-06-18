@@ -1,0 +1,234 @@
+{
+  "id": "image-particle-reconstruction",
+  "version": "1.1.0",
+  "name": "图像粒子化",
+  "nameEN": "Image Particle Reconstruction",
+  "category": "image",
+  "description": "采样图像像素并生成粒子目标点，使粒子组成、扩散和回归图像。",
+  "tags": [
+    "图像",
+    "粒子",
+    "像素采样",
+    "重组"
+  ],
+  "difficulty": "intermediate",
+  "performance": "high",
+  "graph": {
+    "group": {
+      "title": "图像粒子化",
+      "width": 1240,
+      "height": 540,
+      "collapsedByDefault": false,
+      "layoutOnly": true,
+      "renderFrame": false
+    },
+    "nodes": [
+      {
+        "id": "image",
+        "type": "source.image",
+        "label": "图像输入",
+        "position": {
+          "x": 40,
+          "y": 160
+        },
+        "params": {
+          "fit": "contain"
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "features",
+        "type": "analysis.image-features",
+        "label": "图像采样",
+        "position": {
+          "x": 310,
+          "y": 120
+        },
+        "params": {
+          "sampleMode": "grid",
+          "sampleSpacing": 6,
+          "resolution": 3
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "particles",
+        "type": "generator.particles",
+        "label": "粒子系统",
+        "position": {
+          "x": 610,
+          "y": 120
+        },
+        "params": {
+          "count": 5000,
+          "size": 2,
+          "shape": "circle",
+          "returnStrength": 0.08
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "renderer",
+        "type": "renderer.canvas2d",
+        "label": "Canvas渲染",
+        "position": {
+          "x": 940,
+          "y": 160
+        },
+        "params": {
+          "width": 1920,
+          "height": 1080,
+          "clearEachFrame": true
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "image",
+        "sourcePort": "image",
+        "target": "features",
+        "targetPort": "image",
+        "label": "图像 → 像素采样",
+        "mappings": [
+          {
+            "id": "m1",
+            "mode": "direct",
+            "input": "image",
+            "output": "image",
+            "label": "图像 → 采样源",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "source": "features",
+        "sourcePort": "points",
+        "target": "particles",
+        "targetPort": "targetPoints",
+        "label": "采样点 → 粒子目标",
+        "mappings": [
+          {
+            "id": "m2",
+            "mode": "direct",
+            "input": "points",
+            "output": "targetPoints",
+            "label": "像素位置 → 粒子目标",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e3",
+        "source": "features",
+        "sourcePort": "colors",
+        "target": "particles",
+        "targetPort": "colors",
+        "label": "像素颜色 → 粒子颜色",
+        "mappings": [
+          {
+            "id": "m3",
+            "mode": "direct",
+            "input": "colors",
+            "output": "colors",
+            "label": "像素颜色 → 粒子颜色",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e4",
+        "source": "features",
+        "sourcePort": "luminance",
+        "target": "particles",
+        "targetPort": "size",
+        "label": "亮度 → 尺寸",
+        "mappings": [
+          {
+            "id": "m4",
+            "mode": "continuous",
+            "input": "luminance",
+            "output": "size",
+            "label": "亮度 → 粒子尺寸",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              0.7,
+              4.5
+            ],
+            "curve": "easeOut",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.1
+            }
+          }
+        ]
+      },
+      {
+        "id": "e5",
+        "source": "particles",
+        "sourcePort": "canvas",
+        "target": "renderer",
+        "targetPort": "canvas",
+        "label": "粒子 → 输出",
+        "mappings": [
+          {
+            "id": "m5",
+            "mode": "direct",
+            "input": "canvas",
+            "output": "canvas",
+            "label": "Canvas → 渲染",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "insertion": {
+    "surface": "host-node-canvas",
+    "renderGroupFrame": false,
+    "useHostNodeComponents": true,
+    "useHostEdgeComponent": true,
+    "useHostInspector": true,
+    "reuseExistingSystemNodes": true,
+    "insertAsSingleUndoTransaction": true
+  }
+}

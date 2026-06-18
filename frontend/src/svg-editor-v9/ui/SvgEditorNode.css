@@ -1,0 +1,204 @@
+.svg-editor-node {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  grid-template-rows: 52px 1fr;
+  overflow: hidden;
+  background: #17191d;
+  color: #f3f5f7;
+  font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.svg-editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: #202329;
+}
+
+.svg-editor-tools,
+.svg-editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.svg-editor-toolbar button,
+.svg-editor-layers button {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #f3f5f7;
+  cursor: pointer;
+}
+
+.svg-editor-toolbar button {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.svg-editor-toolbar button[data-active="true"],
+.svg-editor-layers button[data-active="true"] {
+  border-color: rgba(89, 184, 255, 0.72);
+  background: rgba(89, 184, 255, 0.16);
+}
+
+.svg-editor-main {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 260px;
+}
+
+.svg-editor-layers,
+.svg-editor-inspector {
+  min-width: 0;
+  padding: 14px;
+  overflow: auto;
+  background: #1f2228;
+}
+
+.svg-editor-layers {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.svg-editor-inspector {
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.svg-editor-layers strong,
+.svg-editor-inspector strong {
+  display: block;
+  margin-bottom: 12px;
+  color: #dfe6ee;
+}
+
+.svg-editor-layers button {
+  width: 100%;
+  min-height: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  margin-bottom: 8px;
+  padding: 8px;
+  text-align: left;
+}
+
+.svg-editor-layers small,
+.svg-editor-muted,
+.svg-editor-output small {
+  color: #99a2ad;
+  font-size: 11px;
+}
+
+.svg-editor-viewport {
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+    #111318;
+  background-size: 20px 20px;
+}
+
+.svg-editor-page {
+  fill: #ffffff;
+  stroke: rgba(89, 184, 255, 0.45);
+  stroke-width: 1;
+}
+
+.svg-editor-selection {
+  fill: none;
+  stroke: #249dff;
+  stroke-width: 1.5;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+}
+
+.svg-editor-path-controls {
+  pointer-events: none;
+}
+
+.svg-editor-path-controls line {
+  stroke: #56b8ff;
+  stroke-width: 1;
+  stroke-dasharray: 4 4;
+}
+
+.svg-editor-anchor,
+.svg-editor-anchor-active,
+.svg-editor-handle {
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.svg-editor-anchor {
+  fill: #249dff;
+}
+
+.svg-editor-anchor-active {
+  fill: #ffb020;
+}
+
+.svg-editor-handle {
+  fill: #1bd6a3;
+}
+
+.svg-editor-inspector-fields {
+  display: grid;
+  gap: 10px;
+}
+
+.svg-editor-inspector-fields label {
+  display: grid;
+  gap: 5px;
+  color: #aeb7c2;
+  font-size: 12px;
+}
+
+.svg-editor-inspector-fields label:has(input[type="checkbox"]) {
+  grid-template-columns: 1fr auto;
+  align-items: center;
+}
+
+.svg-editor-inspector-fields input,
+.svg-editor-inspector-fields select,
+.svg-editor-inspector-fields textarea {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  background: #14171c;
+  color: #f3f5f7;
+  padding: 6px 8px;
+}
+
+.svg-editor-inspector-fields textarea {
+  min-height: 72px;
+  resize: vertical;
+}
+
+.svg-editor-output {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.svg-editor-output span {
+  width: 100%;
+  color: #dfe6ee;
+  font-weight: 700;
+}
+
+.svg-editor-output small {
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: rgba(89, 184, 255, 0.12);
+}

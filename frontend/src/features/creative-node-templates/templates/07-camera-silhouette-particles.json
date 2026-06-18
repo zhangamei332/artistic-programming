@@ -1,0 +1,213 @@
+{
+  "id": "camera-silhouette-particles",
+  "version": "1.1.0",
+  "name": "人物轮廓粒子",
+  "nameEN": "Camera Silhouette Particles",
+  "category": "camera",
+  "description": "从摄像头中分割人物轮廓，将轮廓采样点转换为粒子目标，并根据运动量控制扩散。",
+  "tags": [
+    "摄像头",
+    "人物分割",
+    "粒子",
+    "轮廓"
+  ],
+  "difficulty": "advanced",
+  "performance": "high",
+  "graph": {
+    "group": {
+      "title": "人物轮廓粒子",
+      "width": 1240,
+      "height": 540,
+      "collapsedByDefault": false,
+      "layoutOnly": true,
+      "renderFrame": false
+    },
+    "nodes": [
+      {
+        "id": "camera",
+        "type": "source.camera",
+        "label": "摄像头输入",
+        "position": {
+          "x": 40,
+          "y": 160
+        },
+        "params": {
+          "width": 1280,
+          "height": 720,
+          "frameRate": 30
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "segment",
+        "type": "analysis.subject-segmentation",
+        "label": "主体分割",
+        "position": {
+          "x": 300,
+          "y": 110
+        },
+        "params": {
+          "confidence": 0.55,
+          "edgeSmooth": 0.22,
+          "sampleSpacing": 6
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "particles",
+        "type": "generator.particles",
+        "label": "人物粒子",
+        "position": {
+          "x": 610,
+          "y": 110
+        },
+        "params": {
+          "count": 6000,
+          "size": 2,
+          "returnStrength": 0.09,
+          "damping": 0.94,
+          "glow": 0.4
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "renderer",
+        "type": "renderer.canvas2d",
+        "label": "Canvas渲染",
+        "position": {
+          "x": 950,
+          "y": 160
+        },
+        "params": {
+          "width": 1920,
+          "height": 1080
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "camera",
+        "sourcePort": "video",
+        "target": "segment",
+        "targetPort": "video",
+        "label": "视频 → 人物分割",
+        "mappings": [
+          {
+            "id": "m1",
+            "mode": "direct",
+            "input": "video",
+            "output": "video",
+            "label": "视频帧 → 分割输入",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "source": "segment",
+        "sourcePort": "points",
+        "target": "particles",
+        "targetPort": "targetPoints",
+        "label": "人物采样点 → 粒子目标",
+        "mappings": [
+          {
+            "id": "m2",
+            "mode": "direct",
+            "input": "points",
+            "output": "targetPoints",
+            "label": "人物轮廓 → 粒子目标",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e3",
+        "source": "segment",
+        "sourcePort": "motion",
+        "target": "particles",
+        "targetPort": "force",
+        "label": "运动量 → 扩散力",
+        "mappings": [
+          {
+            "id": "m3",
+            "mode": "continuous",
+            "input": "motion",
+            "output": "force",
+            "label": "人物运动 → 粒子扩散",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              0,
+              2.4
+            ],
+            "curve": "exponential",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.16
+            }
+          }
+        ]
+      },
+      {
+        "id": "e4",
+        "source": "particles",
+        "sourcePort": "canvas",
+        "target": "renderer",
+        "targetPort": "canvas",
+        "label": "粒子 → 输出",
+        "mappings": [
+          {
+            "id": "m4",
+            "mode": "direct",
+            "input": "canvas",
+            "output": "canvas",
+            "label": "Canvas → 渲染",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "insertion": {
+    "surface": "host-node-canvas",
+    "renderGroupFrame": false,
+    "useHostNodeComponents": true,
+    "useHostEdgeComponent": true,
+    "useHostInspector": true,
+    "reuseExistingSystemNodes": true,
+    "insertAsSingleUndoTransaction": true
+  }
+}

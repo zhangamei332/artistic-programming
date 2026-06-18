@@ -73,9 +73,8 @@ window.__disposeCallbacks.push(function dispose() {
 `;
 
 export const GSAP_THREEJS_TEMPLATE = `
-// === GSAP + Three.js 混合模板 ===
-// 分工原则：GSAP 负责 2D DOM动画，Three.js 负责 3D WebGL渲染
-// GSAP 全局已通过 <script> 标签加载，无需 import
+// === 旧导出名兼容：当前模板禁止 GSAP ===
+// 分工原则：Three.js 负责主渲染，Signal 节点负责动画/交互数据流，p5.js 只做可选动态纹理
 
 import * as THREE from 'three';
 
@@ -106,26 +105,11 @@ const resizeObserver = new ResizeObserver(() => {
 });
 resizeObserver.observe(container);
 
-// === 2D DOM元素（用于GSAP动画） ===
-// @node:gsap_timeline=主时间线
-// @param:repeat=-1
-// @param:yoyo=true
-const overlay = document.createElement('div');
-overlay.id = 'hud';
-overlay.style.position = 'absolute';
-overlay.style.top = '0';
-overlay.innerHTML = '<h1 style="color:white;font-size:24px;">HUD</h1>';
-container.appendChild(overlay);
-
-// @node:gsap_tween=淡入动画
-// @param:property=opacity
-// @param:from=0
-// @param:to=1
-// @param:duration=1
-// @param:ease=power2.out
-// @connect:淡入动画->主时间线
-const tl = gsap.timeline({ repeat: -1, yoyo: true });
-tl.fromTo('#hud', { opacity: 0 }, { opacity: 1, duration: 1, ease: 'power2.out' });
+// @node:Time=时间信号
+// @param:speed=1
+// @param:loop=false
+// @param:loopLength=10
+const clock = new THREE.Clock();
 
 // === 3D物体 ===
 // @node:mesh=旋转立方体
@@ -149,11 +133,9 @@ animate();
 window.__disposeCallbacks.push(function dispose() {
   cancelAnimationFrame(animationId);
   resizeObserver.disconnect();
-  if (typeof gsap !== 'undefined') gsap.globalTimeline.clear();
   renderer.dispose();
   geometry.dispose();
   material.dispose();
-  overlay.remove();
 });
 `;
 
@@ -164,11 +146,10 @@ export const CODE_RULES = [
   '不要添加任何解释文字',
   '注释标记必须使用 // @node: / // @param: / @color: / @connect: 格式',
   'Three.js 代码使用 import * as THREE from \'three\' 导入',
-  'GSAP 全局已加载（gsap.min.js），直接使用 gsap 对象，不需要 import',
   'lil-gui 全局已加载，直接使用 lil.GUI 构造函数，不需要 import',
-  'GSAP 负责 2D DOM元素动画，Three.js 负责 3D WebGL渲染，分工明确互不干扰',
+  '禁止使用 GSAP；Three.js 是唯一主渲染 Runtime',
   'p5.js 全局已加载，如需使用 p5.js 请用实例模式 new p5(sketch)，不要用全局模式',
-  '2D 绘图/图形/线条需求优先使用 GSAP + SVG/DOM 或 p5.js 实现',
+  'p5.js 只允许生成离屏动态纹理，并转换为 THREE.CanvasTexture',
   '每个创建的 3D/2D 对象都要有对应的 @node 标记',
   '有数据依赖关系的节点之间必须添加 @connect 标记',
   'renderer.domElement 必须挂载到 container（getElementById("canvas-container")），禁止挂载到 document.body',

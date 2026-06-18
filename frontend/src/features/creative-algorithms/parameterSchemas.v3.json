@@ -1,0 +1,561 @@
+{
+  "marching-squares-metaballs": {
+    "balls": {
+      "type": "integer",
+      "label": "元球数量",
+      "min": 1,
+      "max": 16,
+      "step": 1,
+      "default": 5
+    },
+    "gridSize": {
+      "type": "integer",
+      "label": "网格尺寸",
+      "min": 3,
+      "max": 30,
+      "step": 1,
+      "default": 10
+    },
+    "threshold": {
+      "type": "number",
+      "label": "等值阈值",
+      "min": 0.2,
+      "max": 3,
+      "step": 0.05,
+      "default": 1
+    },
+    "speed": {
+      "type": "number",
+      "label": "运动速度",
+      "min": 0,
+      "max": 3,
+      "step": 0.05,
+      "default": 0.8
+    },
+    "radiusMin": {
+      "type": "number",
+      "label": "最小半径",
+      "min": 5,
+      "max": 120,
+      "step": 1,
+      "default": 34
+    },
+    "radiusMax": {
+      "type": "number",
+      "label": "最大半径",
+      "min": 10,
+      "max": 180,
+      "step": 1,
+      "default": 62
+    },
+    "lineWidth": {
+      "type": "number",
+      "label": "轮廓线宽",
+      "min": 0.5,
+      "max": 8,
+      "step": 0.5,
+      "default": 2
+    },
+    "fill": {
+      "type": "boolean",
+      "label": "内部填充",
+      "default": true
+    }
+  },
+  "wave-function-collapse": {
+    "tileSize": {
+      "type": "integer",
+      "label": "瓷砖尺寸",
+      "min": 10,
+      "max": 64,
+      "step": 1,
+      "default": 24
+    },
+    "stepsPerSecond": {
+      "type": "number",
+      "label": "坍缩速度",
+      "min": 1,
+      "max": 180,
+      "step": 1,
+      "default": 28
+    },
+    "lineWidth": {
+      "type": "number",
+      "label": "路径线宽",
+      "min": 1,
+      "max": 10,
+      "step": 0.5,
+      "default": 3
+    },
+    "autoRestart": {
+      "type": "boolean",
+      "label": "自动重启",
+      "default": true
+    },
+    "restartDelay": {
+      "type": "number",
+      "label": "重启等待",
+      "min": 0,
+      "max": 8,
+      "step": 0.1,
+      "default": 1.2
+    }
+  },
+  "maze-backtracker": {
+    "cellSize": {
+      "type": "integer",
+      "label": "单元尺寸",
+      "min": 6,
+      "max": 50,
+      "step": 1,
+      "default": 18
+    },
+    "stepsPerSecond": {
+      "type": "number",
+      "label": "生成速度",
+      "min": 1,
+      "max": 500,
+      "step": 1,
+      "default": 70
+    },
+    "lineWidth": {
+      "type": "number",
+      "label": "墙体线宽",
+      "min": 0.5,
+      "max": 6,
+      "step": 0.1,
+      "default": 1.2
+    },
+    "autoRestart": {
+      "type": "boolean",
+      "label": "自动重启",
+      "default": true
+    },
+    "restartDelay": {
+      "type": "number",
+      "label": "重启等待",
+      "min": 0,
+      "max": 8,
+      "step": 0.1,
+      "default": 1.3
+    }
+  },
+  "hilbert-curve": {
+    "order": {
+      "type": "integer",
+      "label": "递归阶数",
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "default": 6
+    },
+    "speed": {
+      "type": "number",
+      "label": "绘制速度",
+      "min": 0.01,
+      "max": 2,
+      "step": 0.01,
+      "default": 0.14
+    },
+    "lineWidth": {
+      "type": "number",
+      "label": "线宽",
+      "min": 0.5,
+      "max": 8,
+      "step": 0.5,
+      "default": 2
+    },
+    "loop": {
+      "type": "boolean",
+      "label": "循环绘制",
+      "default": true
+    },
+    "margin": {
+      "type": "number",
+      "label": "边距",
+      "min": 0,
+      "max": 80,
+      "step": 1,
+      "default": 18
+    }
+  },
+  "fourier-epicycles": {
+    "harmonics": {
+      "type": "integer",
+      "label": "谐波数量",
+      "min": 1,
+      "max": 96,
+      "step": 1,
+      "default": 22
+    },
+    "samples": {
+      "type": "integer",
+      "label": "采样数量",
+      "min": 16,
+      "max": 256,
+      "step": 8,
+      "default": 96
+    },
+    "speed": {
+      "type": "number",
+      "label": "绘制速度",
+      "min": 0.01,
+      "max": 3,
+      "step": 0.01,
+      "default": 0.45
+    },
+    "scale": {
+      "type": "number",
+      "label": "图形尺度",
+      "min": 0.5,
+      "max": 12,
+      "step": 0.1,
+      "default": 4.2
+    },
+    "traceLength": {
+      "type": "integer",
+      "label": "轨迹长度",
+      "min": 20,
+      "max": 3000,
+      "step": 20,
+      "default": 900
+    },
+    "circleOpacity": {
+      "type": "number",
+      "label": "旋转圆透明度",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "default": 0.24
+    }
+  },
+  "spirograph": {
+    "outerRadius": {
+      "type": "number",
+      "label": "固定圆半径",
+      "min": 10,
+      "max": 180,
+      "step": 1,
+      "default": 78
+    },
+    "innerRadius": {
+      "type": "number",
+      "label": "滚动圆半径",
+      "min": 2,
+      "max": 160,
+      "step": 1,
+      "default": 31
+    },
+    "penDistance": {
+      "type": "number",
+      "label": "画笔偏心距",
+      "min": 0,
+      "max": 180,
+      "step": 1,
+      "default": 58
+    },
+    "speed": {
+      "type": "number",
+      "label": "旋转速度",
+      "min": 0.01,
+      "max": 8,
+      "step": 0.05,
+      "default": 1.2
+    },
+    "lineWidth": {
+      "type": "number",
+      "label": "线宽",
+      "min": 0.5,
+      "max": 8,
+      "step": 0.1,
+      "default": 1.7
+    },
+    "fade": {
+      "type": "number",
+      "label": "轨迹消退",
+      "min": 0,
+      "max": 0.3,
+      "step": 0.005,
+      "default": 0.025
+    }
+  },
+  "chladni-pattern": {
+    "modeM": {
+      "type": "integer",
+      "label": "横向模态 M",
+      "min": 1,
+      "max": 16,
+      "step": 1,
+      "default": 3
+    },
+    "modeN": {
+      "type": "integer",
+      "label": "纵向模态 N",
+      "min": 1,
+      "max": 16,
+      "step": 1,
+      "default": 5
+    },
+    "threshold": {
+      "type": "number",
+      "label": "节点线宽度",
+      "min": 0.005,
+      "max": 0.5,
+      "step": 0.005,
+      "default": 0.075
+    },
+    "animate": {
+      "type": "boolean",
+      "label": "动态相位",
+      "default": true
+    },
+    "speed": {
+      "type": "number",
+      "label": "相位速度",
+      "min": 0,
+      "max": 4,
+      "step": 0.05,
+      "default": 0.35
+    },
+    "resolution": {
+      "type": "integer",
+      "label": "采样分辨率",
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "default": 3
+    }
+  },
+  "moire-pattern": {
+    "spacing": {
+      "type": "number",
+      "label": "线纹间距",
+      "min": 2,
+      "max": 30,
+      "step": 1,
+      "default": 7
+    },
+    "lineWidth": {
+      "type": "number",
+      "label": "线宽",
+      "min": 0.2,
+      "max": 5,
+      "step": 0.1,
+      "default": 1
+    },
+    "motionRadius": {
+      "type": "number",
+      "label": "运动范围",
+      "min": 0,
+      "max": 180,
+      "step": 1,
+      "default": 38
+    },
+    "speed": {
+      "type": "number",
+      "label": "运动速度",
+      "min": 0,
+      "max": 4,
+      "step": 0.05,
+      "default": 0.7
+    },
+    "pattern": {
+      "type": "select",
+      "label": "纹样类型",
+      "options": [
+        "circles",
+        "lines"
+      ],
+      "default": "circles"
+    }
+  },
+  "elementary-cellular-automata": {
+    "rule": {
+      "type": "integer",
+      "label": "规则编号",
+      "min": 0,
+      "max": 255,
+      "step": 1,
+      "default": 110
+    },
+    "cellSize": {
+      "type": "integer",
+      "label": "像素尺寸",
+      "min": 1,
+      "max": 16,
+      "step": 1,
+      "default": 3
+    },
+    "rowsPerSecond": {
+      "type": "number",
+      "label": "演化速度",
+      "min": 1,
+      "max": 240,
+      "step": 1,
+      "default": 28
+    },
+    "randomSeed": {
+      "type": "boolean",
+      "label": "随机初始行",
+      "default": false
+    },
+    "autoRestart": {
+      "type": "boolean",
+      "label": "自动重启",
+      "default": true
+    },
+    "restartDelay": {
+      "type": "number",
+      "label": "重启等待",
+      "min": 0,
+      "max": 8,
+      "step": 0.1,
+      "default": 1
+    }
+  },
+  "abelian-sandpile": {
+    "resolution": {
+      "type": "integer",
+      "label": "模拟分辨率",
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "default": 3
+    },
+    "initialGrains": {
+      "type": "integer",
+      "label": "初始沙粒",
+      "min": 100,
+      "max": 300000,
+      "step": 100,
+      "default": 22000
+    },
+    "iterationsPerFrame": {
+      "type": "integer",
+      "label": "每帧迭代",
+      "min": 1,
+      "max": 500,
+      "step": 1,
+      "default": 90
+    },
+    "threshold": {
+      "type": "integer",
+      "label": "坍塌阈值",
+      "min": 4,
+      "max": 8,
+      "step": 1,
+      "default": 4
+    },
+    "autoRestart": {
+      "type": "boolean",
+      "label": "稳定后重启",
+      "default": false
+    }
+  },
+  "forest-fire": {
+    "cellSize": {
+      "type": "integer",
+      "label": "单元尺寸",
+      "min": 1,
+      "max": 16,
+      "step": 1,
+      "default": 4
+    },
+    "initialDensity": {
+      "type": "number",
+      "label": "初始森林密度",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "default": 0.62
+    },
+    "growthProbability": {
+      "type": "number",
+      "label": "树木生长概率",
+      "min": 0,
+      "max": 0.2,
+      "step": 0.001,
+      "default": 0.012
+    },
+    "lightningProbability": {
+      "type": "number",
+      "label": "雷击概率",
+      "min": 0,
+      "max": 0.03,
+      "step": 0.0001,
+      "default": 0.00055
+    },
+    "stepsPerSecond": {
+      "type": "number",
+      "label": "演化速度",
+      "min": 1,
+      "max": 120,
+      "step": 1,
+      "default": 18
+    },
+    "neighborhood": {
+      "type": "select",
+      "label": "邻域类型",
+      "options": [
+        "von-neumann",
+        "moore"
+      ],
+      "default": "von-neumann"
+    }
+  },
+  "fabrik-ik": {
+    "segments": {
+      "type": "integer",
+      "label": "骨骼段数",
+      "min": 2,
+      "max": 32,
+      "step": 1,
+      "default": 9
+    },
+    "segmentLength": {
+      "type": "number",
+      "label": "单段长度",
+      "min": 5,
+      "max": 80,
+      "step": 1,
+      "default": 28
+    },
+    "iterations": {
+      "type": "integer",
+      "label": "求解迭代",
+      "min": 1,
+      "max": 50,
+      "step": 1,
+      "default": 12
+    },
+    "tolerance": {
+      "type": "number",
+      "label": "目标误差",
+      "min": 0.01,
+      "max": 10,
+      "step": 0.01,
+      "default": 0.5
+    },
+    "autoTarget": {
+      "type": "boolean",
+      "label": "自动目标",
+      "default": true
+    },
+    "targetSpeed": {
+      "type": "number",
+      "label": "目标速度",
+      "min": 0,
+      "max": 4,
+      "step": 0.05,
+      "default": 0.8
+    },
+    "lineWidth": {
+      "type": "number",
+      "label": "骨骼线宽",
+      "min": 1,
+      "max": 16,
+      "step": 0.5,
+      "default": 5
+    }
+  }
+}

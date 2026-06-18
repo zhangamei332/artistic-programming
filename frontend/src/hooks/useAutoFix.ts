@@ -22,6 +22,30 @@ export interface LogEntry {
   phase: 'generating' | 'verifying' | 'fixing' | 'success' | 'failed';
 }
 
+export interface ApiProgressEntry {
+  id: number;
+  message: string;
+  status: 'active' | 'done' | 'error';
+}
+
+export interface GenerationRequestEntry {
+  id: string;
+  prompt: string;
+  model: string;
+  status: 'active' | 'done' | 'error';
+  message: string;
+  code: string;
+  timestamp: number;
+}
+
+export interface PreviewTaskResult {
+  code: string;
+  language: 'threejs';
+  nodes: NodeData[];
+  edges: EdgeData[];
+  refreshKey: number;
+}
+
 export interface HistoryEntry {
   id: string;
   prompt: string;
@@ -40,6 +64,62 @@ export type Phase = 'idle' | 'generating' | 'verifying' | 'fixing' | 'success' |
 const MAX_ATTEMPTS = 3;
 const VERIFY_TIMEOUT = 15000;
 const MAX_HISTORY = 50;
+
+interface StreamResult {
+  code: string;
+  language?: 'threejs';
+  nodes?: NodeData[];
+  edges?: EdgeData[];
+  error?: unknown;
+}
+
+async function readEventStream(
+  response: Response,
+  onProgress: (message: string) => void,
+  onDelta: (text: string) => void,
+): Promise<StreamResult> {
+  if (!response.body) throw new Error('No response stream');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let result: StreamResult | null = null;
+
+  const handleBlock = (block: string) => {
+    const lines = block.split('\n');
+    const eventLine = lines.find((line) => line.startsWith('event:'));
+    const dataLines = lines.filter((line) => line.startsWith('data:'));
+    if (!eventLine || dataLines.length === 0) return;
+
+    const event = eventLine.slice(6).trim();
+    const dataText = dataLines.map((line) => line.slice(5).trim()).join('\n');
+    const data = JSON.parse(dataText);
+
+    if (event === 'progress') onProgress(data.message || '');
+    if (event === 'delta') onDelta(data.text || '');
+    if (event === 'done') result = data;
+    if (event === 'error') throw new Error(data.message || 'API stream failed');
+  };
+
+  while (true) {
+    const { value, done } = await reader.read();
+    buffer += decoder.decode(value || new Uint8Array(), { stream: !done });
+
+    let boundary = buffer.indexOf('\n\n');
+    while (boundary >= 0) {
+      const block = buffer.slice(0, boundary).trim();
+      buffer = buffer.slice(boundary + 2);
+      if (block) handleBlock(block);
+      boundary = buffer.indexOf('\n\n');
+    }
+
+    if (done) break;
+  }
+
+  if (buffer.trim()) handleBlock(buffer.trim());
+  if (!result) throw new Error('API stream ended without a result');
+  return result;
+}
 
 /** Compute a human-readable diff between two node sets */
 function computeNodeDiff(
@@ -73,23 +153,25 @@ function computeNodeDiff(
   return diffs.slice(0, 6).join(', ') || '参数已更新';
 }
 
-/** Infrastructure nodes are always relevant, even without connections */
-const INFRA_NODES = new Set(['scene', 'camera', 'renderer', 'setup', 'draw', 'animation', 'comp_root']);
-
-/** Filter out nodes that have no connections AND no editable parameters (not infrastructure) */
+/** Legacy graph helpers are kept only for existing history/parameter flows. */
 function filterRelevantNodes(nodes: NodeData[], edges: EdgeData[]): NodeData[] {
+  const infrastructureTypes = new Set(['scene', 'camera', 'renderer', 'comp_root', 'animation', 'responsive']);
   const connectedIds = new Set<string>();
   for (const e of edges) {
     connectedIds.add(e.source);
     connectedIds.add(e.target);
   }
-  return nodes.filter((n) => {
-    if (INFRA_NODES.has(n.type)) return true;
-    if (connectedIds.has(n.id)) return true;
-    const paramKeys = Object.keys(n.params).filter((k) => k !== 'interaction');
-    if (paramKeys.length > 0) return true;
-    return false;
-  });
+  if (connectedIds.size === 0) return nodes.filter((n) => infrastructureTypes.has(n.type));
+  return nodes.filter((n) => connectedIds.has(n.id) || infrastructureTypes.has(n.type));
+}
+
+function filterConnectedGraph(nodes: NodeData[], edges: EdgeData[]): { nodes: NodeData[]; edges: EdgeData[] } {
+  const filteredNodes = filterRelevantNodes(nodes, edges);
+  const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
+  return {
+    nodes: filteredNodes,
+    edges: edges.filter((e) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target)),
+  };
 }
 
 export function useAutoFix() {
@@ -103,6 +185,9 @@ export function useAutoFix() {
   const [previewKey, setPreviewKey] = useState(0);
   const [generationKey, setGenerationKey] = useState(0);
   const [adjustExplanation, setAdjustExplanation] = useState<string | null>(null);
+  const [apiProgress, setApiProgress] = useState<ApiProgressEntry[]>([]);
+  const [streamedCode, setStreamedCode] = useState('');
+  const [requestLog, setRequestLog] = useState<GenerationRequestEntry[]>([]);
   const [history, setHistory] = useState<HistoryEntry[]>([]);
   const [activeBaseHistoryId, setActiveBaseHistoryId] = useState<string | null>(null);
   const activeBaseRef = useRef<string | null>(null);
@@ -115,7 +200,25 @@ export function useAutoFix() {
   const codeRef = useRef<string>('');
   const verifyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastPromptRef = useRef<string>('');
-  const lastModelRef = useRef<string>('deepseek');
+  const lastModelRef = useRef<string>('deepseekv4');
+  const apiProgressIdRef = useRef(0);
+  const isGeneratingRef = useRef(false);
+  const hideGeneratedGraphRef = useRef(false);
+  const activeRequestIdRef = useRef<string | null>(null);
+
+  const resolveVisibleGraph = useCallback((
+    apiNodes: NodeData[],
+    apiEdges: EdgeData[],
+    fallbackNodes: NodeData[],
+    fallbackEdges: EdgeData[],
+  ) => {
+    if (hideGeneratedGraphRef.current) {
+      return { nodes: [], edges: [] };
+    }
+    const nodesFromApi: NodeData[] = (apiNodes && apiNodes.length > 0) ? apiNodes : fallbackNodes;
+    const edgesFromApi: EdgeData[] = (apiEdges && apiEdges.length > 0) ? apiEdges : fallbackEdges;
+    return filterConnectedGraph(nodesFromApi, edgesFromApi);
+  }, []);
 
   const clearVerifyTimer = useCallback(() => {
     if (verifyTimerRef.current) {
@@ -129,6 +232,156 @@ export function useAutoFix() {
       setCorrectionLog((prev) => [...prev, entry]);
     },
     [],
+  );
+
+  const createRequestEntry = useCallback((prompt: string, model: string, message: string) => {
+    const id = `req_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const entry: GenerationRequestEntry = {
+      id,
+      prompt,
+      model,
+      status: 'active',
+      message,
+      code: '',
+      timestamp: Date.now(),
+    };
+    setRequestLog((prev) => [entry, ...prev].slice(0, 20));
+    return id;
+  }, []);
+
+  const updateRequestById = useCallback((id: string, patch: Partial<GenerationRequestEntry>) => {
+    setRequestLog((prev) => prev.map((item) => (
+      item.id === id ? { ...item, ...patch } : item
+    )));
+  }, []);
+
+  const appendRequestCodeById = useCallback((id: string, text: string) => {
+    if (!text) return;
+    setRequestLog((prev) => prev.map((item) => (
+      item.id === id ? { ...item, code: item.code + text } : item
+    )));
+  }, []);
+
+  const updateActiveRequest = useCallback((patch: Partial<GenerationRequestEntry>) => {
+    const activeId = activeRequestIdRef.current;
+    if (!activeId) return;
+    setRequestLog((prev) => prev.map((item) => (
+      item.id === activeId ? { ...item, ...patch } : item
+    )));
+  }, []);
+
+  const appendActiveRequestCode = useCallback((text: string) => {
+    const activeId = activeRequestIdRef.current;
+    if (!activeId || !text) return;
+    setRequestLog((prev) => prev.map((item) => (
+      item.id === activeId ? { ...item, code: item.code + text } : item
+    )));
+  }, []);
+
+  const resetApiProgress = useCallback((message: string) => {
+    apiProgressIdRef.current = 1;
+    setStreamedCode('');
+    setApiProgress([{ id: 1, message, status: 'active' }]);
+    const id = createRequestEntry(lastPromptRef.current, lastModelRef.current, message);
+    activeRequestIdRef.current = id;
+  }, [createRequestEntry]);
+
+  const addApiProgress = useCallback((message: string) => {
+    if (!message) return;
+    setApiProgress((prev) => {
+      const done = prev.map((item) => (
+        item.status === 'active' ? { ...item, status: 'done' as const } : item
+      ));
+      apiProgressIdRef.current += 1;
+      return [...done, { id: apiProgressIdRef.current, message, status: 'active' }];
+    });
+    updateActiveRequest({ message, status: 'active' });
+  }, [updateActiveRequest]);
+
+  const finishApiProgress = useCallback((message: string) => {
+    setApiProgress((prev) => {
+      const done = prev.map((item) => (
+        item.status === 'active' ? { ...item, status: 'done' as const } : item
+      ));
+      apiProgressIdRef.current += 1;
+      return [...done, { id: apiProgressIdRef.current, message, status: 'done' }];
+    });
+    updateActiveRequest({ message, status: 'done' });
+  }, [updateActiveRequest]);
+
+  const failApiProgress = useCallback((message: string) => {
+    setApiProgress((prev) => {
+      const done = prev.map((item) => (
+        item.status === 'active' ? { ...item, status: 'error' as const } : item
+      ));
+      apiProgressIdRef.current += 1;
+      return [...done, { id: apiProgressIdRef.current, message, status: 'error' }];
+    });
+    updateActiveRequest({ message, status: 'error' });
+  }, [updateActiveRequest]);
+
+  const callStreamApi = useCallback(
+    async (url: string, body: Record<string, unknown>) => {
+      addApiProgress('请求已发送，等待 API 返回');
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, stream: true }),
+      });
+      if (!response.ok) {
+        let errorMsg = `HTTP ${response.status}`;
+        try {
+          const errBody = await response.json();
+          errorMsg = errBody.message || errBody.error || JSON.stringify(errBody);
+        } catch {
+          try { errorMsg = await response.text(); } catch { /* keep default */ }
+        }
+        throw new Error(errorMsg);
+      }
+      const result = await readEventStream(
+        response,
+        addApiProgress,
+        (text) => {
+          setStreamedCode((prev) => prev + text);
+          appendActiveRequestCode(text);
+        },
+      );
+      if (result.code) updateActiveRequest({ code: result.code });
+      return result;
+    },
+    [addApiProgress, appendActiveRequestCode, updateActiveRequest],
+  );
+
+  const callStreamApiForRequest = useCallback(
+    async (url: string, body: Record<string, unknown>, requestId: string) => {
+      updateRequestById(requestId, {
+        message: '请求已发送，等待 API 返回',
+        status: 'active',
+      });
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...body, stream: true }),
+      });
+      if (!response.ok) {
+        let errorMsg = `HTTP ${response.status}`;
+        try {
+          const errBody = await response.json();
+          errorMsg = errBody.message || errBody.error || JSON.stringify(errBody);
+        } catch {
+          try { errorMsg = await response.text(); } catch { /* keep default */ }
+        }
+        throw new Error(errorMsg);
+      }
+      const result = await readEventStream(
+        response,
+        (message) => updateRequestById(requestId, { message, status: 'active' }),
+        (text) => appendRequestCodeById(requestId, text),
+      );
+      if (result.code) updateRequestById(requestId, { code: result.code });
+      return result;
+    },
+    [appendRequestCodeById, updateRequestById],
   );
 
   // --- Save to history ---
@@ -193,6 +446,35 @@ export function useAutoFix() {
     setHistory((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
+  const resetProject = useCallback(() => {
+    clearVerifyTimer();
+    attemptRef.current = 1;
+    languageRef.current = 'threejs';
+    nodesRef.current = [];
+    edgesRef.current = [];
+    codeRef.current = '';
+    lastPromptRef.current = '';
+    lastModelRef.current = 'deepseekv4';
+    activeBaseRef.current = null;
+    parentNodesSnapshotRef.current = [];
+    hideGeneratedGraphRef.current = false;
+
+    setPhase('idle');
+    setFinalCode(null);
+    setFinalNodes(null);
+    setFinalEdges([]);
+    setCorrectionLog([]);
+    setVerificationCode(null);
+    setPreviewKey((k) => k + 1);
+    setGenerationKey((k) => k + 1);
+    setAdjustExplanation(null);
+    setApiProgress([]);
+    setStreamedCode('');
+    setRequestLog([]);
+    setHistory([]);
+    setActiveBaseHistoryId(null);
+  }, [clearVerifyTimer]);
+
   const moveToParent = useCallback((entryId: string, newParentId: string | null) => {
     setHistory((prev) => {
       const next = prev.map((e) => {
@@ -236,24 +518,24 @@ export function useAutoFix() {
       });
 
       try {
-        const response = await fetch('/api/generate/fix', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code,
-            error,
-            language: languageRef.current,
-            model: lastModelRef.current,
-          }),
+        resetApiProgress('正在准备自动修复请求');
+        const result = await callStreamApi('/api/generate/fix', {
+          code,
+          error,
+          language: languageRef.current,
+          model: lastModelRef.current,
         });
 
-        const result = await response.json();
-        if (result.success && result.data?.code) {
-          const fixedCode = result.data.code;
-          const apiNodes: NodeData[] = result.data.nodes;
-          const apiEdges: EdgeData[] = result.data.edges;
-          const newNodes: NodeData[] = (apiNodes && apiNodes.length > 0) ? apiNodes : nodesRef.current;
-          const newEdges: EdgeData[] = (apiEdges && apiEdges.length > 0) ? apiEdges : edgesRef.current;
+        if (result.code) {
+          const fixedCode = result.code;
+          const apiNodes: NodeData[] = result.nodes || [];
+          const apiEdges: EdgeData[] = result.edges || [];
+          const { nodes: newNodes, edges: newEdges } = resolveVisibleGraph(
+            apiNodes,
+            apiEdges,
+            nodesRef.current,
+            edgesRef.current,
+          );
 
           codeRef.current = fixedCode;
           nodesRef.current = newNodes;
@@ -275,15 +557,18 @@ export function useAutoFix() {
           setGenerationKey((k) => k + 1);
 
           startVerify(fixedCode);
+          finishApiProgress('修复代码已返回，正在后台验证');
         } else {
           setPhase('failed');
+          failApiProgress('修复接口没有返回代码');
         }
       } catch (err) {
         console.error('修复请求失败:', err);
         setPhase('failed');
+        failApiProgress(err instanceof Error ? err.message : '修复请求失败');
       }
     },
-    [addLog, startVerify],
+    [addLog, callStreamApi, failApiProgress, finishApiProgress, resetApiProgress, resolveVisibleGraph, startVerify],
   );
 
   const handleError = useCallback(
@@ -328,47 +613,40 @@ export function useAutoFix() {
 
   const startAutoFix = useCallback(
     async (prompt: string, model: string, files: File[] = []) => {
+      if (isGeneratingRef.current) return;
+      isGeneratingRef.current = true;
       attemptRef.current = 1;
+      hideGeneratedGraphRef.current = true;
       lastPromptRef.current = prompt;
       lastModelRef.current = model;
       setCorrectionLog([]);
-      setFinalCode(null);
-      setFinalNodes(null);
-      setFinalEdges([]);
       setAdjustExplanation(null);
       setActiveBaseHistoryId(null);
       activeBaseRef.current = null;
       setPhase('generating');
       setGenerationKey((k) => k + 1);
+      resetApiProgress('正在准备生成请求');
 
       try {
         // Build file info for the AI
         const fileNames = files.map((f) => f.name);
         const fileInfo = fileNames.length > 0
-          ? `\n已上传文件: ${fileNames.join(', ')}\n请在你的代码注释中使用 @node:file_xxx=文件名 标注文件引用节点，并用 @connect 连接它们到使用该文件的节点。`
+          ? `\n已上传文件: ${fileNames.join(', ')}\n如需使用素材，请在代码和节点注释中标注文件引用。`
           : '';
 
-        const response = await fetch('/api/generate/text', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: prompt.trim() + fileInfo, model }),
-        });
+        const result = await callStreamApi('/api/generate/text', { prompt: prompt.trim() + fileInfo, model });
 
-        const result = await response.json();
-
-        if (result.success && result.data?.code) {
-          const code = result.data.code;
+        if (result.code) {
+          const code = result.code;
           const language: 'threejs' =
-            result.data.language || 'threejs';
-          const nodes: NodeData[] = result.data.nodes || [];
-          const edges: EdgeData[] = result.data.edges || [];
+            result.language || 'threejs';
+          // 生成预览时不再把 API 解析出的 @node/@connect 映射成画布节点。
+          // 画布只保留用户创建的文本/图像节点和预览节点。
+          const nodes: NodeData[] = [];
+          const edges: EdgeData[] = [];
 
           languageRef.current = language;
-          const filteredNodes = filterRelevantNodes(nodes, edges);
-          const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
-          const filteredEdges = edges.filter(
-            (e) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target),
-          );
+          const { nodes: filteredNodes, edges: filteredEdges } = filterConnectedGraph(nodes, edges);
           nodesRef.current = filteredNodes;
           edgesRef.current = filteredEdges;
 
@@ -379,7 +657,8 @@ export function useAutoFix() {
             phase: 'generating',
           });
 
-          // Show preview IMMEDIATELY (optimistic), verify in background
+          // Show preview IMMEDIATELY (optimistic)
+          // 不再进行后台验证 — 验证会导致不必要的自动修复和黑屏
           setFinalCode(code);
           setFinalNodes(filteredNodes);
           setFinalEdges(filteredEdges);
@@ -387,19 +666,103 @@ export function useAutoFix() {
           setPreviewKey((k) => k + 1);
           setGenerationKey((k) => k + 1);
           saveToHistory(prompt.trim(), model);
-
-          // Background verification — will auto-fix if errors found
-          startVerify(code);
+          finishApiProgress('代码已返回，预览已更新');
         } else {
           console.error('生成失败:', result.error);
           setPhase('failed');
+          failApiProgress('生成接口没有返回代码');
         }
+        isGeneratingRef.current = false;
       } catch (err) {
         console.error('请求失败:', err);
         setPhase('failed');
+        failApiProgress(err instanceof Error ? err.message : '生成请求失败');
+        isGeneratingRef.current = false;
       }
     },
-    [addLog, startVerify, saveToHistory],
+    [addLog, callStreamApi, failApiProgress, finishApiProgress, resetApiProgress, saveToHistory, startVerify],
+  );
+
+  const startPreviewTask = useCallback(
+    async (prompt: string, model: string, files: File[] = []): Promise<PreviewTaskResult> => {
+      const trimmedPrompt = prompt.trim();
+      const requestId = createRequestEntry(trimmedPrompt, model, '正在准备生成请求');
+      try {
+        const fileNames = files.map((f) => f.name);
+        const fileInfo = fileNames.length > 0
+          ? `\n已上传文件: ${fileNames.join(', ')}\n如需使用素材，请在代码和节点注释中标注文件引用。`
+          : '';
+        const result = await callStreamApiForRequest('/api/generate/text', {
+          prompt: trimmedPrompt + fileInfo,
+          model,
+        }, requestId);
+
+        if (!result.code) {
+          throw new Error('生成接口没有返回代码');
+        }
+
+        const taskResult: PreviewTaskResult = {
+          code: result.code,
+          language: result.language || 'threejs',
+          nodes: result.nodes || [],
+          edges: result.edges || [],
+          refreshKey: Date.now(),
+        };
+        updateRequestById(requestId, {
+          code: taskResult.code,
+          message: '代码已返回，预览已更新',
+          status: 'done',
+        });
+        return taskResult;
+      } catch (err) {
+        updateRequestById(requestId, {
+          message: err instanceof Error ? err.message : '生成请求失败',
+          status: 'error',
+        });
+        throw err;
+      }
+    },
+    [callStreamApiForRequest, createRequestEntry, updateRequestById],
+  );
+
+  const startPreviewAdjustmentTask = useCallback(
+    async (baseCode: string, prompt: string, model: string): Promise<PreviewTaskResult> => {
+      const trimmedPrompt = prompt.trim();
+      const requestId = createRequestEntry(trimmedPrompt, model, '正在准备连续调整请求');
+      try {
+        const result = await callStreamApiForRequest('/api/generate/fix', {
+          code: baseCode,
+          error: `同一画布会话分支的连续调整指令：\n${trimmedPrompt.slice(0, 9500)}\n\n必须基于传入的完整代码继续修改，保留用户未要求改变的代码、全局参数、节点注释、视觉结果与交互。`,
+          language: 'threejs',
+          model,
+        }, requestId);
+
+        if (!result.code) {
+          throw new Error('连续调整接口没有返回代码');
+        }
+
+        const taskResult: PreviewTaskResult = {
+          code: result.code,
+          language: result.language || 'threejs',
+          nodes: result.nodes || [],
+          edges: result.edges || [],
+          refreshKey: Date.now(),
+        };
+        updateRequestById(requestId, {
+          code: taskResult.code,
+          message: '连续调整代码已返回，预览已更新',
+          status: 'done',
+        });
+        return taskResult;
+      } catch (err) {
+        updateRequestById(requestId, {
+          message: err instanceof Error ? err.message : '连续调整请求失败',
+          status: 'error',
+        });
+        throw err;
+      }
+    },
+    [callStreamApiForRequest, createRequestEntry, updateRequestById],
   );
 
   const onVerifierError = useCallback(
@@ -462,8 +825,9 @@ export function useAutoFix() {
         const newCode = result.data.code;
         const apiNodes: NodeData[] = result.data.nodes;
         const apiEdges: EdgeData[] = result.data.edges;
-        const newNodes: NodeData[] = (apiNodes && apiNodes.length > 0) ? apiNodes : nodes;
-        const newEdges: EdgeData[] = (apiEdges && apiEdges.length > 0) ? apiEdges : edges;
+        const nodesFromApi: NodeData[] = (apiNodes && apiNodes.length > 0) ? apiNodes : nodes;
+        const edgesFromApi: EdgeData[] = (apiEdges && apiEdges.length > 0) ? apiEdges : edges;
+        const { nodes: newNodes, edges: newEdges } = filterConnectedGraph(nodesFromApi, edgesFromApi);
         codeRef.current = newCode;
         nodesRef.current = newNodes;
         edgesRef.current = newEdges;
@@ -526,26 +890,26 @@ export function useAutoFix() {
 
       setPhase('fixing');
       setAdjustExplanation(null);
+      resetApiProgress('正在准备调整请求');
 
       try {
-        const response = await fetch('/api/generate/fix', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: currentCode,
-            error: `用户要求调整: ${adjustPrompt.trim()}\n请修改代码以满足以上调整要求，保持代码结构不变，仅修改相关部分。`,
-            language: languageRef.current,
-            model: lastModelRef.current,
-          }),
+        const result = await callStreamApi('/api/generate/fix', {
+          code: currentCode,
+          error: `用户要求调整: ${adjustPrompt.trim()}\n请修改代码以满足以上调整要求。`,
+          language: languageRef.current,
+          model: lastModelRef.current,
         });
 
-        const result = await response.json();
-        if (result.success && result.data?.code) {
-          const newCode = result.data.code;
-          const apiNodes: NodeData[] = result.data.nodes;
-          const apiEdges: EdgeData[] = result.data.edges;
-          const newNodes: NodeData[] = (apiNodes && apiNodes.length > 0) ? apiNodes : nodesRef.current;
-          const newEdges: EdgeData[] = (apiEdges && apiEdges.length > 0) ? apiEdges : edgesRef.current;
+        if (result.code) {
+          const newCode = result.code;
+          const apiNodes: NodeData[] = result.nodes || [];
+          const apiEdges: EdgeData[] = result.edges || [];
+          const { nodes: newNodes, edges: newEdges } = resolveVisibleGraph(
+            apiNodes,
+            apiEdges,
+            nodesRef.current,
+            edgesRef.current,
+          );
           codeRef.current = newCode;
           nodesRef.current = newNodes;
           edgesRef.current = newEdges;
@@ -555,6 +919,7 @@ export function useAutoFix() {
           setPreviewKey((k) => k + 1);
           setGenerationKey((k) => k + 1);
           setPhase('success');
+          finishApiProgress('调整代码已返回，预览已更新');
           setAdjustExplanation(`已根据「${adjustPrompt.trim()}」调整代码`);
           // Compute diff against parent if this is a child
           const parentNodesForDiff = activeBaseRef.current
@@ -592,15 +957,17 @@ export function useAutoFix() {
         } else {
           console.error('调整失败:', result.error);
           setPhase('success');
+          failApiProgress('调整接口没有返回代码');
           setAdjustExplanation(`调整失败: ${result.error || '未知错误'}`);
         }
       } catch (err) {
         console.error('调整请求失败:', err);
         setPhase('success');
+        failApiProgress(err instanceof Error ? err.message : '调整请求失败');
         setAdjustExplanation('调整请求发送失败，请检查网络');
       }
     },
-    [],
+    [callStreamApi, failApiProgress, finishApiProgress, resetApiProgress, resolveVisibleGraph],
   );
 
   // --- Save params locally only (no preview refresh) ---
@@ -613,6 +980,9 @@ export function useAutoFix() {
 
   // --- Sync canvas mutations (drag-drop nodes, connect edges) back to refs ---
   const syncFromCanvas = useCallback((nodes: NodeData[], edges: EdgeData[]) => {
+    if (nodes.length > 0) {
+      hideGeneratedGraphRef.current = false;
+    }
     nodesRef.current = nodes;
     edgesRef.current = edges;
     setFinalNodes([...nodes]);
@@ -681,8 +1051,9 @@ export function useAutoFix() {
           const newCode = result.data.code;
           const apiNodes: NodeData[] = result.data.nodes;
           const apiEdges: EdgeData[] = result.data.edges;
-          const newNodes: NodeData[] = (apiNodes && apiNodes.length > 0) ? apiNodes : nodes;
-          const newEdges: EdgeData[] = (apiEdges && apiEdges.length > 0) ? apiEdges : edges;
+          const nodesFromApi: NodeData[] = (apiNodes && apiNodes.length > 0) ? apiNodes : nodes;
+          const edgesFromApi: EdgeData[] = (apiEdges && apiEdges.length > 0) ? apiEdges : edges;
+          const { nodes: newNodes, edges: newEdges } = filterConnectedGraph(nodesFromApi, edgesFromApi);
           codeRef.current = newCode;
           nodesRef.current = newNodes;
           edgesRef.current = newEdges;
@@ -702,7 +1073,7 @@ export function useAutoFix() {
               nodes: JSON.parse(JSON.stringify(newNodes)),
               edges: JSON.parse(JSON.stringify(newEdges)),
               language,
-              model: lastModelRef.current || 'deepseek',
+              model: lastModelRef.current || 'deepseekv4',
               timestamp: Date.now(),
               parentId: activeBaseRef.current || undefined,
             };
@@ -724,13 +1095,13 @@ export function useAutoFix() {
       } else {
         // No existing code → use generate endpoint with graph text as prompt
         lastPromptRef.current = graphText;
-        lastModelRef.current = 'deepseek';
+        lastModelRef.current = 'deepseekv4';
         attemptRef.current = 1;
 
         const response = await fetch('/api/generate/text', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt: graphText, model: 'deepseek' }),
+          body: JSON.stringify({ prompt: graphText, model: 'deepseekv4' }),
         });
 
         const result = await response.json();
@@ -741,11 +1112,7 @@ export function useAutoFix() {
           const edgesData: EdgeData[] = result.data.edges || [];
 
           languageRef.current = lang;
-          const filteredNodes = filterRelevantNodes(nodes, edgesData);
-          const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
-          const filteredEdges = edgesData.filter(
-            (e) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target),
-          );
+          const { nodes: filteredNodes, edges: filteredEdges } = filterConnectedGraph(nodes, edgesData);
           nodesRef.current = filteredNodes;
           edgesRef.current = filteredEdges;
           codeRef.current = code;
@@ -766,7 +1133,7 @@ export function useAutoFix() {
               nodes: JSON.parse(JSON.stringify(filteredNodes)),
               edges: JSON.parse(JSON.stringify(filteredEdges)),
               language: lang,
-              model: 'deepseek',
+              model: 'deepseekv4',
               timestamp: Date.now(),
             };
             return [entry, ...prev].slice(0, MAX_HISTORY);
@@ -791,43 +1158,33 @@ export function useAutoFix() {
 
       attemptRef.current = 1;
       lastPromptRef.current = `[代码转化] ${instruction.trim()}`;
-      lastModelRef.current = 'deepseek';
+      lastModelRef.current = 'deepseekv4';
+      hideGeneratedGraphRef.current = false;
       setCorrectionLog([]);
-      setFinalCode(null);
-      setFinalNodes(null);
-      setFinalEdges([]);
       setAdjustExplanation(null);
       setActiveBaseHistoryId(null);
       activeBaseRef.current = null;
       setPhase('generating');
       setGenerationKey((k) => k + 1);
+      resetApiProgress('正在准备代码转化请求');
 
       try {
-        const response = await fetch('/api/generate/fix', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            code: sourceCode,
-            error: `用户要求对以下代码进行转化:\n${instruction.trim()}\n请根据以上指令修改代码，保持 @node/@connect 注释标记。`,
-            language: 'threejs',
-            model: lastModelRef.current,
-          }),
+        const result = await callStreamApi('/api/generate/fix', {
+          code: sourceCode,
+            error: `用户要求对以下代码进行转化:\n${instruction.trim()}\n请根据以上指令修改代码，并保留基础节点注释。`,
+          language: 'threejs',
+          model: lastModelRef.current,
         });
 
-        const result = await response.json();
-        if (result.success && result.data?.code) {
-          const code = result.data.code;
-          const apiNodes: NodeData[] = result.data.nodes;
-          const apiEdges: EdgeData[] = result.data.edges;
-          const nodes: NodeData[] = apiNodes && apiNodes.length > 0 ? apiNodes : [];
-          const edges: EdgeData[] = apiEdges && apiEdges.length > 0 ? apiEdges : [];
+        if (result.code) {
+          const code = result.code;
+          const apiNodes: NodeData[] = result.nodes || [];
+          const apiEdges: EdgeData[] = result.edges || [];
+          const nodes: NodeData[] = apiNodes && apiNodes.length > 0 ? apiNodes : nodesRef.current;
+          const edges: EdgeData[] = apiEdges && apiEdges.length > 0 ? apiEdges : edgesRef.current;
 
           languageRef.current = 'threejs';
-          const filteredNodes = filterRelevantNodes(nodes, edges);
-          const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
-          const filteredEdges = edges.filter(
-            (e) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target),
-          );
+          const { nodes: filteredNodes, edges: filteredEdges } = filterConnectedGraph(nodes, edges);
           nodesRef.current = filteredNodes;
           edgesRef.current = filteredEdges;
 
@@ -838,47 +1195,50 @@ export function useAutoFix() {
             phase: 'generating',
           });
 
-          // Show preview immediately, verify in background
+          // Show preview immediately
+          // 不再进行后台验证 — 验证会导致不必要的自动修复和黑屏
           setFinalCode(code);
           setFinalNodes(filteredNodes);
           setFinalEdges(filteredEdges);
           setPhase('success');
           setPreviewKey((k) => k + 1);
           setGenerationKey((k) => k + 1);
-          saveToHistory(`[代码转化] ${instruction.trim()}`, 'deepseek');
-
-          startVerify(code);
+          saveToHistory(`[code transform] ${instruction.trim()}`, 'deepseekv4');
+          finishApiProgress('代码转化结果已返回，预览已更新');
         } else {
           console.error('代码转化失败:', result.error);
           setPhase('failed');
+          failApiProgress('代码转化接口没有返回代码');
           setAdjustExplanation(`代码转化失败: ${result.error || '未知错误'}`);
         }
       } catch (err) {
         console.error('代码转化请求失败:', err);
         setPhase('failed');
+        failApiProgress(err instanceof Error ? err.message : '代码转化请求失败');
         setAdjustExplanation('代码转化请求发送失败，请检查网络');
       }
     },
-    [addLog, startVerify, saveToHistory],
+    [addLog, callStreamApi, failApiProgress, finishApiProgress, resetApiProgress, saveToHistory, startVerify],
   );
 
   // --- Image to code: user uploads an image + instruction ---
   const imageToCode = useCallback(
-    async (imageFile: File, instruction: string) => {
+    async (imageFile: File, instruction: string, model = 'deepseekv4') => {
       if (!instruction.trim()) return;
+      if (isGeneratingRef.current) return;
+      isGeneratingRef.current = true;
+      hideGeneratedGraphRef.current = true;
 
       attemptRef.current = 1;
       lastPromptRef.current = `[图生代码] ${instruction.trim()}`;
-      lastModelRef.current = 'deepseek';
+      lastModelRef.current = model;
       setCorrectionLog([]);
-      setFinalCode(null);
-      setFinalNodes(null);
-      setFinalEdges([]);
       setAdjustExplanation(null);
       setActiveBaseHistoryId(null);
       activeBaseRef.current = null;
       setPhase('generating');
       setGenerationKey((k) => k + 1);
+      resetApiProgress('正在准备图生代码请求');
 
       try {
         // convert image file to base64 data URL
@@ -889,30 +1249,21 @@ export function useAutoFix() {
           reader.readAsDataURL(imageFile);
         });
 
-        const response = await fetch('/api/generate/image-to-code', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            image: imageDataUrl,
-            instruction: instruction.trim(),
-            model: 'deepseek',
-          }),
+        const result = await callStreamApi('/api/generate/image-to-code', {
+          image: imageDataUrl,
+          instruction: instruction.trim(),
+          model,
         });
 
-        const result = await response.json();
-        if (result.success && result.data?.code) {
-          const code = result.data.code;
-          const apiNodes: NodeData[] = result.data.nodes;
-          const apiEdges: EdgeData[] = result.data.edges;
-          const nodes: NodeData[] = apiNodes && apiNodes.length > 0 ? apiNodes : [];
-          const edges: EdgeData[] = apiEdges && apiEdges.length > 0 ? apiEdges : [];
+        if (result.code) {
+          const code = result.code;
+          // 图生代码也不在画布上显示 API 工具节点，与纯文本生成行为一致。
+          // 画布只保留用户创建的图像/文本节点和预览节点。
+          const nodes: NodeData[] = [];
+          const edges: EdgeData[] = [];
 
           languageRef.current = 'threejs';
-          const filteredNodes = filterRelevantNodes(nodes, edges);
-          const filteredNodeIds = new Set(filteredNodes.map((n) => n.id));
-          const filteredEdges = edges.filter(
-            (e) => filteredNodeIds.has(e.source) && filteredNodeIds.has(e.target),
-          );
+          const { nodes: filteredNodes, edges: filteredEdges } = filterConnectedGraph(nodes, edges);
           nodesRef.current = filteredNodes;
           edgesRef.current = filteredEdges;
 
@@ -923,28 +1274,32 @@ export function useAutoFix() {
             phase: 'generating',
           });
 
-          // Show preview immediately, verify in background
+          // Show preview immediately
+          // 不再进行后台验证 — 验证会导致不必要的自动修复和黑屏
           setFinalCode(code);
           setFinalNodes(filteredNodes);
           setFinalEdges(filteredEdges);
           setPhase('success');
           setPreviewKey((k) => k + 1);
           setGenerationKey((k) => k + 1);
-          saveToHistory(`[图生代码] ${instruction.trim()}`, 'deepseek');
-
-          startVerify(code);
+          saveToHistory(`[image to code] ${instruction.trim()}`, model);
+          finishApiProgress('图生代码已返回，预览已更新');
         } else {
           console.error('图生代码失败:', result.error);
           setPhase('failed');
+          failApiProgress('图生代码接口没有返回代码');
           setAdjustExplanation(`图生代码失败: ${result.error || '未知错误'}`);
         }
+        isGeneratingRef.current = false;
       } catch (err) {
         console.error('图生代码请求失败:', err);
         setPhase('failed');
+        failApiProgress(err instanceof Error ? err.message : '图生代码请求失败');
         setAdjustExplanation('图生代码请求发送失败，请检查网络');
+        isGeneratingRef.current = false;
       }
     },
-    [addLog, startVerify, saveToHistory],
+    [addLog, callStreamApi, failApiProgress, finishApiProgress, resetApiProgress, saveToHistory, startVerify],
   );
 
   const refreshPreview = useCallback(() => {
@@ -963,8 +1318,13 @@ export function useAutoFix() {
     previewKey,
     generationKey,
     adjustExplanation,
+    apiProgress,
+    streamedCode,
+    requestLog,
     history,
     startAutoFix,
+    startPreviewTask,
+    startPreviewAdjustmentTask,
     onVerifierError,
     onVerifierSuccess,
     updateNodeParams,
@@ -974,6 +1334,7 @@ export function useAutoFix() {
     refreshPreview,
     restoreHistory,
     deleteHistory,
+    resetProject,
     moveToParent,
     syncFromCanvas,
     addEdge,

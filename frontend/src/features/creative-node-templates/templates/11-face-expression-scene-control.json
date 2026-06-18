@@ -1,0 +1,390 @@
+{
+  "id": "face-expression-scene-control",
+  "version": "1.1.0",
+  "name": "人脸表情控制场景",
+  "nameEN": "Face Expression Scene Control",
+  "category": "face",
+  "description": "使用嘴巴、眉毛、头部姿态、点头和摇头控制三维物体与摄像机。",
+  "tags": [
+    "人脸识别",
+    "表情",
+    "头部姿态",
+    "场景控制"
+  ],
+  "difficulty": "advanced",
+  "performance": "high",
+  "graph": {
+    "group": {
+      "title": "人脸表情控制场景",
+      "width": 1360,
+      "height": 650,
+      "collapsedByDefault": false,
+      "layoutOnly": true,
+      "renderFrame": false
+    },
+    "nodes": [
+      {
+        "id": "camera",
+        "type": "source.camera",
+        "label": "摄像头输入",
+        "position": {
+          "x": 40,
+          "y": 180
+        },
+        "params": {
+          "frameRate": 30
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "face",
+        "type": "analysis.face",
+        "label": "人脸与表情分析",
+        "position": {
+          "x": 300,
+          "y": 100
+        },
+        "params": {
+          "confidence": 0.6,
+          "smoothing": 0.22,
+          "nodPriority": 100,
+          "shakePriority": 100,
+          "expressionPriority": 50
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "scene",
+        "type": "controller.scene",
+        "label": "场景控制",
+        "position": {
+          "x": 610,
+          "y": 110
+        },
+        "params": {
+          "targetScope": "group",
+          "transition": "spring",
+          "transitionTime": 0.45
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "geometry",
+        "type": "generator.geometry",
+        "label": "场景主体",
+        "position": {
+          "x": 610,
+          "y": 350
+        },
+        "params": {
+          "geometryType": "icosphere",
+          "size": 1,
+          "segments": 96
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      },
+      {
+        "id": "renderer",
+        "type": "renderer.threejs",
+        "label": "Three.js渲染",
+        "position": {
+          "x": 970,
+          "y": 180
+        },
+        "params": {
+          "rendererType": "webgl"
+        },
+        "ui": {
+          "width": 210,
+          "collapsed": false
+        }
+      }
+    ],
+    "edges": [
+      {
+        "id": "e1",
+        "source": "camera",
+        "sourcePort": "video",
+        "target": "face",
+        "targetPort": "video",
+        "label": "视频 → 人脸分析",
+        "mappings": [
+          {
+            "id": "m1",
+            "mode": "direct",
+            "input": "video",
+            "output": "video",
+            "label": "视频帧 → 人脸识别",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e2",
+        "source": "face",
+        "sourcePort": "mouthOpen",
+        "target": "scene",
+        "targetPort": "openAmount",
+        "label": "嘴巴 → 开合",
+        "mappings": [
+          {
+            "id": "m2",
+            "mode": "continuous",
+            "input": "mouthOpen",
+            "output": "openAmount",
+            "label": "嘴巴开合 → 场景开合",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              0,
+              1.6
+            ],
+            "curve": "easeOut",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.18
+            }
+          }
+        ]
+      },
+      {
+        "id": "e3",
+        "source": "face",
+        "sourcePort": "browRaise",
+        "target": "scene",
+        "targetPort": "positionY",
+        "label": "眉毛 → 上升",
+        "mappings": [
+          {
+            "id": "m3",
+            "mode": "continuous",
+            "input": "browRaise",
+            "output": "positionY",
+            "label": "眉毛高度 → 物体上升",
+            "inputRange": [
+              0,
+              1
+            ],
+            "outputRange": [
+              0,
+              1.8
+            ],
+            "curve": "easeOut",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.18
+            }
+          }
+        ]
+      },
+      {
+        "id": "e4",
+        "source": "face",
+        "sourcePort": "yaw",
+        "target": "scene",
+        "targetPort": "rotationY",
+        "label": "左右转头 → 旋转Y",
+        "mappings": [
+          {
+            "id": "m4",
+            "mode": "continuous",
+            "input": "yaw",
+            "output": "rotationY",
+            "label": "Yaw → 场景旋转Y",
+            "inputRange": [
+              -45,
+              45
+            ],
+            "outputRange": [
+              -0.9,
+              0.9
+            ],
+            "curve": "linear",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.2
+            }
+          }
+        ]
+      },
+      {
+        "id": "e5",
+        "source": "face",
+        "sourcePort": "pitch",
+        "target": "scene",
+        "targetPort": "rotationX",
+        "label": "抬头低头 → 旋转X",
+        "mappings": [
+          {
+            "id": "m5",
+            "mode": "continuous",
+            "input": "pitch",
+            "output": "rotationX",
+            "label": "Pitch → 场景旋转X",
+            "inputRange": [
+              -30,
+              30
+            ],
+            "outputRange": [
+              -0.6,
+              0.6
+            ],
+            "curve": "linear",
+            "invert": false,
+            "clamp": true,
+            "smoothing": {
+              "type": "lerp",
+              "amount": 0.2
+            }
+          }
+        ]
+      },
+      {
+        "id": "e6",
+        "source": "face",
+        "sourcePort": "nod",
+        "target": "scene",
+        "targetPort": "event",
+        "label": "点头 → 向前事件",
+        "mappings": [
+          {
+            "id": "m6",
+            "mode": "event",
+            "input": "nod",
+            "output": "event",
+            "label": "点头 → 摄像机前进",
+            "curve": "step",
+            "clamp": true,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            },
+            "threshold": {
+              "operator": ">=",
+              "value": 0.5,
+              "hysteresis": 0.08
+            },
+            "trigger": {
+              "behavior": "onEnter",
+              "holdMs": 120,
+              "cooldownMs": 700
+            }
+          }
+        ]
+      },
+      {
+        "id": "e7",
+        "source": "face",
+        "sourcePort": "shake",
+        "target": "scene",
+        "targetPort": "event",
+        "label": "摇头 → 横向事件",
+        "mappings": [
+          {
+            "id": "m7",
+            "mode": "event",
+            "input": "shake",
+            "output": "event",
+            "label": "摇头 → 横向旋转",
+            "curve": "step",
+            "clamp": true,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            },
+            "threshold": {
+              "operator": ">=",
+              "value": 0.5,
+              "hysteresis": 0.08
+            },
+            "trigger": {
+              "behavior": "onEnter",
+              "holdMs": 120,
+              "cooldownMs": 700
+            }
+          }
+        ]
+      },
+      {
+        "id": "e8",
+        "source": "geometry",
+        "sourcePort": "object3d",
+        "target": "renderer",
+        "targetPort": "object3d",
+        "label": "主体 → 渲染",
+        "mappings": [
+          {
+            "id": "m8",
+            "mode": "direct",
+            "input": "object3d",
+            "output": "object3d",
+            "label": "Object3D → 渲染",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      },
+      {
+        "id": "e9",
+        "source": "scene",
+        "sourcePort": "sceneState",
+        "target": "renderer",
+        "targetPort": "sceneState",
+        "label": "场景状态 → 渲染",
+        "mappings": [
+          {
+            "id": "m9",
+            "mode": "direct",
+            "input": "sceneState",
+            "output": "sceneState",
+            "label": "场景控制 → 渲染",
+            "curve": "linear",
+            "clamp": false,
+            "smoothing": {
+              "type": "none",
+              "amount": 0
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "insertion": {
+    "surface": "host-node-canvas",
+    "renderGroupFrame": false,
+    "useHostNodeComponents": true,
+    "useHostEdgeComponent": true,
+    "useHostInspector": true,
+    "reuseExistingSystemNodes": true,
+    "insertAsSingleUndoTransaction": true
+  }
+}

@@ -1,7 +1,7 @@
-import { useState, useCallback, useRef } from 'react';
-import { Typography, Button, Tooltip } from 'antd';
-import { HistoryOutlined, DeleteOutlined, BranchesOutlined, HolderOutlined } from '@ant-design/icons';
-import type { HistoryEntry } from '../../hooks/useAutoFix';
+import { useCallback, useRef, useState } from 'react';
+import { Typography } from 'antd';
+import { BranchesOutlined, HistoryOutlined, HolderOutlined } from '@ant-design/icons';
+import type { ApiProgressEntry, HistoryEntry, Phase } from '../../hooks/useAutoFix';
 import styles from './HistoryPanel.module.css';
 
 const { Text } = Typography;
@@ -9,9 +9,12 @@ const { Text } = Typography;
 interface HistoryPanelProps {
   history: HistoryEntry[];
   onRestore: (entry: HistoryEntry) => void;
-  onDelete: (id: string) => void;
   onMoveToParent?: (entryId: string, newParentId: string | null) => void;
   activeBaseId?: string | null;
+  isProcessing?: boolean;
+  phase?: Phase;
+  apiProgress?: ApiProgressEntry[];
+  streamedCode?: string;
 }
 
 function formatTime(ts: number): string {
@@ -24,7 +27,6 @@ function getChildren(parentId: string, all: HistoryEntry[]): HistoryEntry[] {
   return all.filter((e) => e.parentId === parentId);
 }
 
-/** Check if `potentialParent` is an ancestor of `entryId` (prevent circular) */
 function isDescendantOf(entryId: string, potentialParent: HistoryEntry, all: HistoryEntry[]): boolean {
   let current = all.find((e) => e.id === entryId);
   while (current?.parentId) {
@@ -34,16 +36,24 @@ function isDescendantOf(entryId: string, potentialParent: HistoryEntry, all: His
   return false;
 }
 
-export function HistoryPanel({ history, onRestore, onDelete, onMoveToParent, activeBaseId }: HistoryPanelProps) {
-  // 使用 ref 追踪拖拽状态，避免闭包过期问题
+export function HistoryPanel({
+  history,
+  onRestore,
+  onMoveToParent,
+  activeBaseId,
+  isProcessing = false,
+  phase = 'idle',
+  apiProgress = [],
+  streamedCode = '',
+}: HistoryPanelProps) {
   const dragIdRef = useRef<string | null>(null);
   const [dropTargetId, setDropTargetId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const handleDragStart = useCallback((e: React.DragEvent, entryId: string) => {
     e.dataTransfer.setData('text/plain', entryId);
     e.dataTransfer.effectAllowed = 'move';
     dragIdRef.current = entryId;
-    // 让浏览器渲染drag图像
     const el = e.currentTarget.closest(`.${styles.item}`) as HTMLElement;
     if (el) {
       e.dataTransfer.setDragImage(el, el.offsetWidth / 2, el.offsetHeight / 2);
@@ -78,7 +88,6 @@ export function HistoryPanel({ history, onRestore, onDelete, onMoveToParent, act
       setDropTargetId(null);
       return;
     }
-    // 防止循环引用
     if (isDescendantOf(targetEntry.id, { id: entryId } as HistoryEntry, history)) {
       dragIdRef.current = null;
       setDropTargetId(null);
@@ -89,7 +98,6 @@ export function HistoryPanel({ history, onRestore, onDelete, onMoveToParent, act
     setDropTargetId(null);
   }, [history, onMoveToParent]);
 
-  // Drop on empty area to detach from parent
   const handlePanelDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     const entryId = e.dataTransfer.getData('text/plain');
@@ -104,36 +112,68 @@ export function HistoryPanel({ history, onRestore, onDelete, onMoveToParent, act
     e.dataTransfer.dropEffect = 'move';
   }, []);
 
-  if (history.length === 0) {
-    return (
-      <div className={styles.panel}>
-        <div className={styles.header}>
-          <HistoryOutlined style={{ fontSize: 12 }} />
-          <Text className={styles.title}>历史记录</Text>
-        </div>
-        <div className={styles.empty}>暂无生成记录</div>
-      </div>
-    );
-  }
+  const showLiveEntry = isProcessing || streamedCode.length > 0 || apiProgress.length > 0;
+  const phaseLabel: Record<Phase, string> = {
+    idle: '空闲',
+    generating: '生成中',
+    verifying: '检查中',
+    fixing: '调整中',
+    success: '已完成',
+    failed: '失败',
+  };
 
-  // Build flat tree: top-level entries followed by their children
   const rendered: HistoryEntry[] = [];
   const topLevel = history.filter((e) => !e.parentId);
   for (const parent of topLevel) {
     rendered.push(parent);
-    const children = getChildren(parent.id, history);
-    rendered.push(...children);
+    rendered.push(...getChildren(parent.id, history));
+  }
+
+  function renderLiveEntry() {
+    if (!showLiveEntry) return null;
+    const isExpanded = expandedId === 'live';
+    const latestProgress = apiProgress[apiProgress.length - 1]?.message || '等待模型返回代码';
+
+    return (
+      <div
+        className={`${styles.item} ${styles.liveItem} ${isProcessing ? styles.liveItemActive : ''}`}
+        onClick={() => setExpandedId((current) => (current === 'live' ? null : 'live'))}
+      >
+        <div className={styles.itemContent}>
+          <div className={styles.itemTop}>
+            <Text className={styles.itemPrompt} ellipsis>
+              实时代码生成
+            </Text>
+            <Text type="secondary" style={{ fontSize: 10, flexShrink: 0 }}>
+              {phaseLabel[phase]}
+            </Text>
+          </div>
+          <div className={styles.liveProgress}>{latestProgress}</div>
+          <div className={styles.itemMeta}>
+            <span className={styles.badge}>{streamedCode.length} 字符</span>
+            <span className={styles.codeHint}>{isExpanded ? '收起代码' : '查看实时代码'}</span>
+          </div>
+          {isExpanded && (
+            <pre className={styles.codeBlock}>{streamedCode || '正在等待第一段代码返回...'}</pre>
+          )}
+        </div>
+      </div>
+    );
   }
 
   function renderEntry(entry: HistoryEntry, isChild: boolean) {
     const isActive = activeBaseId === entry.id;
     const isDropTarget = dropTargetId === entry.id;
+    const isExpanded = expandedId === entry.id;
 
     return (
       <div
         key={entry.id}
         className={`${styles.item} ${isChild ? styles.itemChild : ''} ${isActive ? styles.itemActive : ''} ${isDropTarget ? styles.dropTarget : ''}`}
-        onClick={() => onRestore(entry)}
+        onClick={() => {
+          onRestore(entry);
+          setExpandedId((current) => (current === entry.id ? null : entry.id));
+        }}
         onDragOver={(e) => handleDragOver(e, entry.id)}
         onDragLeave={handleDragLeave}
         onDrop={(e) => handleDrop(e, entry)}
@@ -144,14 +184,13 @@ export function HistoryPanel({ history, onRestore, onDelete, onMoveToParent, act
             <BranchesOutlined style={{ fontSize: 10 }} />
           </div>
         )}
-        {/* Drag handle — only for non-child entries */}
         <div
           className={styles.dragHandle}
           draggable
           onDragStart={(e) => handleDragStart(e, entry.id)}
           onDragEnd={handleDragEnd}
           onClick={(e) => e.stopPropagation()}
-          title="拖拽到其他记录上以建立父子级关系"
+          title="拖拽到其他记录上建立父子级关系"
         >
           <HolderOutlined />
         </div>
@@ -172,19 +211,11 @@ export function HistoryPanel({ history, onRestore, onDelete, onMoveToParent, act
             )}
             <span className={styles.badge}>{entry.language}</span>
             <span className={styles.badge}>{entry.nodes.length} 节点</span>
-            <Tooltip title="删除记录">
-              <Button
-                type="text"
-                size="small"
-                icon={<DeleteOutlined />}
-                className={styles.deleteBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(entry.id);
-                }}
-              />
-            </Tooltip>
+            <span className={styles.codeHint}>{isExpanded ? '收起代码' : '查看代码'}</span>
           </div>
+          {isExpanded && (
+            <pre className={styles.codeBlock}>{entry.code}</pre>
+          )}
         </div>
       </div>
     );
@@ -204,10 +235,11 @@ export function HistoryPanel({ history, onRestore, onDelete, onMoveToParent, act
         </Text>
       </div>
       <div className={styles.list}>
-        {rendered.map((entry) => {
-          const isChild = !!entry.parentId;
-          return renderEntry(entry, isChild);
-        })}
+        {renderLiveEntry()}
+        {rendered.map((entry) => renderEntry(entry, !!entry.parentId))}
+        {history.length === 0 && !showLiveEntry && (
+          <div className={styles.empty}>暂无生成记录</div>
+        )}
       </div>
     </div>
   );

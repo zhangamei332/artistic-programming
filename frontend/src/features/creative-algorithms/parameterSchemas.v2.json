@@ -1,0 +1,559 @@
+{
+  "simplex-noise": {
+    "scale": {
+      "type": "number",
+      "label": "噪声尺度",
+      "min": 0.002,
+      "max": 0.05,
+      "step": 0.001,
+      "default": 0.012
+    },
+    "speed": {
+      "type": "number",
+      "label": "运动速度",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "default": 0.22
+    },
+    "octaves": {
+      "type": "integer",
+      "label": "噪声层数",
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "default": 5
+    },
+    "resolution": {
+      "type": "integer",
+      "label": "采样分辨率",
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "default": 4
+    },
+    "seed": {
+      "type": "integer",
+      "label": "随机种子",
+      "min": 0,
+      "max": 9999,
+      "step": 1,
+      "default": 21
+    }
+  },
+  "worley-noise": {
+    "sites": {
+      "type": "integer",
+      "label": "细胞数量",
+      "min": 4,
+      "max": 120,
+      "step": 1,
+      "default": 28
+    },
+    "resolution": {
+      "type": "integer",
+      "label": "采样分辨率",
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "default": 4
+    },
+    "speed": {
+      "type": "number",
+      "label": "运动速度",
+      "min": 0,
+      "max": 80,
+      "step": 1,
+      "default": 16
+    },
+    "edgeScale": {
+      "type": "number",
+      "label": "边缘宽度",
+      "min": 0.5,
+      "max": 20,
+      "step": 0.5,
+      "default": 4
+    }
+  },
+  "domain-warping": {
+    "scale": {
+      "type": "number",
+      "label": "基础尺度",
+      "min": 0.001,
+      "max": 0.04,
+      "step": 0.001,
+      "default": 0.008
+    },
+    "warpStrength": {
+      "type": "number",
+      "label": "扭曲强度",
+      "min": 0,
+      "max": 8,
+      "step": 0.1,
+      "default": 2.2
+    },
+    "speed": {
+      "type": "number",
+      "label": "运动速度",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "default": 0.16
+    },
+    "octaves": {
+      "type": "integer",
+      "label": "噪声层数",
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "default": 4
+    },
+    "resolution": {
+      "type": "integer",
+      "label": "采样分辨率",
+      "min": 1,
+      "max": 10,
+      "step": 1,
+      "default": 4
+    },
+    "seed": {
+      "type": "integer",
+      "label": "随机种子",
+      "min": 0,
+      "max": 9999,
+      "step": 1,
+      "default": 37
+    }
+  },
+  "curl-noise": {
+    "count": {
+      "type": "integer",
+      "label": "粒子数量",
+      "min": 50,
+      "max": 5000,
+      "step": 50,
+      "default": 900
+    },
+    "scale": {
+      "type": "number",
+      "label": "流场尺度",
+      "min": 0.001,
+      "max": 0.03,
+      "step": 0.001,
+      "default": 0.005
+    },
+    "speed": {
+      "type": "number",
+      "label": "粒子速度",
+      "min": 1,
+      "max": 240,
+      "step": 1,
+      "default": 65
+    },
+    "epsilon": {
+      "type": "number",
+      "label": "梯度采样间距",
+      "min": 0.1,
+      "max": 4,
+      "step": 0.1,
+      "default": 0.8
+    },
+    "fade": {
+      "type": "number",
+      "label": "轨迹消退",
+      "min": 0.005,
+      "max": 0.3,
+      "step": 0.005,
+      "default": 0.06
+    }
+  },
+  "dla-growth": {
+    "walkersPerFrame": {
+      "type": "integer",
+      "label": "每帧游走粒子",
+      "min": 1,
+      "max": 150,
+      "step": 1,
+      "default": 35
+    },
+    "maxSteps": {
+      "type": "integer",
+      "label": "最大游走步数",
+      "min": 50,
+      "max": 3000,
+      "step": 50,
+      "default": 650
+    },
+    "particleSize": {
+      "type": "number",
+      "label": "粒子尺寸",
+      "min": 1,
+      "max": 6,
+      "step": 0.5,
+      "default": 2
+    },
+    "spawnPadding": {
+      "type": "number",
+      "label": "生成边距",
+      "min": 4,
+      "max": 80,
+      "step": 1,
+      "default": 16
+    },
+    "maxParticles": {
+      "type": "integer",
+      "label": "最大聚集数量",
+      "min": 100,
+      "max": 15000,
+      "step": 100,
+      "default": 4500
+    }
+  },
+  "slime-mold": {
+    "count": {
+      "type": "integer",
+      "label": "Agent 数量",
+      "min": 200,
+      "max": 20000,
+      "step": 200,
+      "default": 5000
+    },
+    "resolution": {
+      "type": "integer",
+      "label": "模拟分辨率",
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "default": 3
+    },
+    "moveSpeed": {
+      "type": "number",
+      "label": "移动速度",
+      "min": 1,
+      "max": 120,
+      "step": 1,
+      "default": 34
+    },
+    "sensorDistance": {
+      "type": "number",
+      "label": "传感距离",
+      "min": 1,
+      "max": 30,
+      "step": 0.5,
+      "default": 9
+    },
+    "sensorAngle": {
+      "type": "number",
+      "label": "传感角度",
+      "min": 0.1,
+      "max": 1.5,
+      "step": 0.05,
+      "default": 0.55
+    },
+    "turnSpeed": {
+      "type": "number",
+      "label": "转向速度",
+      "min": 0.1,
+      "max": 8,
+      "step": 0.1,
+      "default": 2.8
+    },
+    "deposit": {
+      "type": "number",
+      "label": "轨迹沉积",
+      "min": 0.01,
+      "max": 1,
+      "step": 0.01,
+      "default": 0.35
+    },
+    "decay": {
+      "type": "number",
+      "label": "轨迹衰减",
+      "min": 0.8,
+      "max": 0.999,
+      "step": 0.001,
+      "default": 0.95
+    }
+  },
+  "poisson-disk": {
+    "radius": {
+      "type": "number",
+      "label": "最小点距",
+      "min": 3,
+      "max": 80,
+      "step": 1,
+      "default": 18
+    },
+    "candidates": {
+      "type": "integer",
+      "label": "候选次数",
+      "min": 5,
+      "max": 80,
+      "step": 1,
+      "default": 30
+    },
+    "pointsPerFrame": {
+      "type": "integer",
+      "label": "每帧生成数量",
+      "min": 1,
+      "max": 30,
+      "step": 1,
+      "default": 5
+    },
+    "pointSize": {
+      "type": "number",
+      "label": "点尺寸",
+      "min": 0.5,
+      "max": 8,
+      "step": 0.5,
+      "default": 2.5
+    }
+  },
+  "delaunay": {
+    "points": {
+      "type": "integer",
+      "label": "点数量",
+      "min": 3,
+      "max": 180,
+      "step": 1,
+      "default": 38
+    },
+    "speed": {
+      "type": "number",
+      "label": "运动速度",
+      "min": 0,
+      "max": 100,
+      "step": 1,
+      "default": 22
+    },
+    "showPoints": {
+      "type": "boolean",
+      "label": "显示控制点",
+      "default": true
+    },
+    "lineWidth": {
+      "type": "number",
+      "label": "线宽",
+      "min": 0.2,
+      "max": 5,
+      "step": 0.1,
+      "default": 1
+    }
+  },
+  "julia-set": {
+    "cReal": {
+      "type": "number",
+      "label": "复常数实部",
+      "min": -1.5,
+      "max": 1.5,
+      "step": 0.01,
+      "default": -0.72
+    },
+    "cImag": {
+      "type": "number",
+      "label": "复常数虚部",
+      "min": -1.5,
+      "max": 1.5,
+      "step": 0.01,
+      "default": 0.1
+    },
+    "animateC": {
+      "type": "boolean",
+      "label": "常数动画",
+      "default": true
+    },
+    "animationRadius": {
+      "type": "number",
+      "label": "常数变化范围",
+      "min": 0,
+      "max": 0.8,
+      "step": 0.01,
+      "default": 0.16
+    },
+    "iterations": {
+      "type": "integer",
+      "label": "迭代次数",
+      "min": 12,
+      "max": 240,
+      "step": 4,
+      "default": 64
+    },
+    "zoom": {
+      "type": "number",
+      "label": "缩放",
+      "min": 0.2,
+      "max": 20,
+      "step": 0.1,
+      "default": 1
+    },
+    "resolution": {
+      "type": "integer",
+      "label": "采样分辨率",
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "default": 3
+    }
+  },
+  "mandelbrot-set": {
+    "centerX": {
+      "type": "number",
+      "label": "中心 X",
+      "min": -2.5,
+      "max": 1,
+      "step": 0.0001,
+      "default": -0.7435
+    },
+    "centerY": {
+      "type": "number",
+      "label": "中心 Y",
+      "min": -1.5,
+      "max": 1.5,
+      "step": 0.0001,
+      "default": 0.1314
+    },
+    "zoom": {
+      "type": "number",
+      "label": "缩放",
+      "min": 0.2,
+      "max": 1000,
+      "step": 0.1,
+      "default": 1.4
+    },
+    "autoZoom": {
+      "type": "boolean",
+      "label": "自动缩放",
+      "default": true
+    },
+    "zoomSpeed": {
+      "type": "number",
+      "label": "缩放速度",
+      "min": 0,
+      "max": 1,
+      "step": 0.01,
+      "default": 0.08
+    },
+    "iterations": {
+      "type": "integer",
+      "label": "迭代次数",
+      "min": 12,
+      "max": 300,
+      "step": 4,
+      "default": 72
+    },
+    "resolution": {
+      "type": "integer",
+      "label": "采样分辨率",
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "default": 3
+    }
+  },
+  "verlet-cloth": {
+    "cols": {
+      "type": "integer",
+      "label": "横向节点",
+      "min": 4,
+      "max": 80,
+      "step": 1,
+      "default": 26
+    },
+    "rows": {
+      "type": "integer",
+      "label": "纵向节点",
+      "min": 4,
+      "max": 60,
+      "step": 1,
+      "default": 16
+    },
+    "gravity": {
+      "type": "number",
+      "label": "重力",
+      "min": 0,
+      "max": 1800,
+      "step": 10,
+      "default": 420
+    },
+    "damping": {
+      "type": "number",
+      "label": "阻尼",
+      "min": 0.8,
+      "max": 1,
+      "step": 0.001,
+      "default": 0.992
+    },
+    "constraintIterations": {
+      "type": "integer",
+      "label": "约束迭代",
+      "min": 1,
+      "max": 20,
+      "step": 1,
+      "default": 5
+    },
+    "pointerRadius": {
+      "type": "number",
+      "label": "交互半径",
+      "min": 10,
+      "max": 240,
+      "step": 1,
+      "default": 65
+    },
+    "pointerForce": {
+      "type": "number",
+      "label": "交互力度",
+      "min": 0,
+      "max": 5000,
+      "step": 50,
+      "default": 950
+    }
+  },
+  "pixel-sorting": {
+    "resolution": {
+      "type": "integer",
+      "label": "处理分辨率",
+      "min": 1,
+      "max": 8,
+      "step": 1,
+      "default": 2
+    },
+    "threshold": {
+      "type": "number",
+      "label": "亮度阈值",
+      "min": 0,
+      "max": 255,
+      "step": 1,
+      "default": 125
+    },
+    "thresholdRange": {
+      "type": "number",
+      "label": "阈值动画范围",
+      "min": 0,
+      "max": 180,
+      "step": 1,
+      "default": 70
+    },
+    "animationSpeed": {
+      "type": "number",
+      "label": "动画速度",
+      "min": 0,
+      "max": 4,
+      "step": 0.05,
+      "default": 0.8
+    },
+    "direction": {
+      "type": "select",
+      "label": "排序方向",
+      "options": [
+        "horizontal",
+        "vertical"
+      ],
+      "default": "horizontal"
+    },
+    "descending": {
+      "type": "boolean",
+      "label": "反向排序",
+      "default": false
+    }
+  }
+}
